@@ -12,6 +12,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.gooutside.ui.navigation.AppNavBar
 import com.example.gooutside.ui.navigation.AppNavHost
+import com.example.gooutside.ui.theme.GoOutsideTheme
 
 @Composable
 fun GoOutsideApp(navController: NavHostController = rememberNavController()) {
@@ -38,5 +39,5 @@ fun GoOutsideApp(navController: NavHostController = rememberNavController()) {
 @Preview(showBackground = true)
 @Composable
 fun GoOutsideAppPreview() {
-    GoOutsideApp()
+    GoOutsideTheme { GoOutsideApp() }
 }
