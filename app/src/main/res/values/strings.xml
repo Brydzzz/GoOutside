@@ -3,4 +3,6 @@
     <string name="home_nav_label">Home</string>
     <string name="photo_mode_nav_label">Photo Mode</string>
     <string name="settings_nav_label">Settings</string>
+    <string name="diary_section_header">Photo Diary</string>
+    <string name="stats_section_header">Daily Streak Stats</string>
 </resources>
