@@ -5,4 +5,8 @@
     <string name="settings_nav_label">Settings</string>
     <string name="diary_section_header">Photo Diary</string>
     <string name="stats_section_header">Statistics</string>
+    <string name="location_icon_content_description">Location icon</string>
+    <string name="no_location">No location</string>
+    <string name="arrow_forward_icon_content_description">Arrow forward icon</string>
+    <string name="no_entries_prompt">No entries yet, use Photo Mode to add.</string>
 </resources>
