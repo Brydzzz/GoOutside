@@ -22,7 +22,7 @@ interface DiaryEntryDao {
     @Query("SELECT * FROM diary_entries WHERE id = :id")
     fun getById(id: Int): Flow<DiaryEntry>
 
-    @Query("SELECT * FROM diary_entries")
+    @Query("SELECT * FROM diary_entries ORDER BY creationDate DESC")
     fun getAll(): Flow<List<DiaryEntry>>
 
     @Query("SELECT * FROM diary_entries ORDER BY creationDate DESC LIMIT 5")
