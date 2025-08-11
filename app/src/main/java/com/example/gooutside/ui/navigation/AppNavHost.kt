@@ -20,7 +20,11 @@ fun AppNavHost(
         modifier = modifier
     ) {
         composable(route = MainDestination.Home.route) {
-            HomeScreen()
+            HomeScreen(
+                navigateToStatsPage = { /* TODO */ },
+                navigateToDiaryPage = { /* TODO */ },
+                navigateToDiaryEntry = { /* TODO */ },
+            )
         }
         composable(route = MainDestination.PhotoMode.route) {
             PhotoModeScreen()
