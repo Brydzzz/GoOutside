@@ -49,17 +49,14 @@ fun HomeScreen() {
 @Composable
 fun SectionHeader(headerText: String, onClick: () -> Unit = {}) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
+        modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically
     ) {
         Text(headerText, style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.size(10.dp))
         Icon(
             painterResource(R.drawable.ic_arrow_forward_24),
             contentDescription = null,
-            modifier = Modifier.clickable { onClick }
-        )
+            modifier = Modifier.clickable { onClick })
     }
 }
 
@@ -67,17 +64,18 @@ fun SectionHeader(headerText: String, onClick: () -> Unit = {}) {
 fun DiaryEntriesList() {
     Column(
         verticalArrangement = Arrangement.spacedBy(16.dp),
-        modifier = Modifier.verticalScroll(rememberScrollState()),
+        modifier = Modifier
+            .verticalScroll(rememberScrollState())
+            .padding(bottom = 16.dp),
     ) {
-        repeat(4) {
-            DiaryEntry()
+        repeat(5) {
+            DiaryEntryCard()
         }
-        DiaryEntry(Modifier.padding(bottom = 16.dp))
     }
 }
 
 @Composable
-fun DiaryEntry(modifier: Modifier = Modifier) {
+fun DiaryEntryCard(modifier: Modifier = Modifier) {
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -121,7 +119,7 @@ fun SectionHeaderPreview() {
 @Preview(showBackground = true)
 @Composable
 fun DiaryEntryPreview() {
-    GoOutsideTheme { DiaryEntry() }
+    GoOutsideTheme { DiaryEntryCard() }
 }
 
 @Preview(showBackground = true)
