@@ -55,6 +55,16 @@ dependencies {
     implementation(libs.androidx.appcompat.resources)
     implementation(libs.androidx.appcompat)
 
+    // CameraX
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+    implementation(libs.androidx.camera.mlkit.vision)
+
+    // Permissions
+    implementation(libs.accompanist.permissions)
+
     // Room
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
