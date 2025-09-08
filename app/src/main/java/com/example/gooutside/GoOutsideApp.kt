@@ -12,24 +12,31 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.gooutside.ui.navigation.AppNavBar
 import com.example.gooutside.ui.navigation.AppNavHost
+import com.example.gooutside.ui.navigation.MainDestination
 import com.example.gooutside.ui.theme.GoOutsideTheme
 
 @Composable
 fun GoOutsideApp(navController: NavHostController = rememberNavController()) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+
+    val routesWithoutBottomBar = listOf(MainDestination.PhotoMode.route)
+    val shouldShowBottomBar = currentRoute !in routesWithoutBottomBar
+
     Scaffold(
         modifier = Modifier,
         bottomBar = {
-            AppNavBar(currentRoute, onNavigate = {
-                navController.navigate(it) {
-                    popUpTo(navController.graph.findStartDestination().id) {
-                        saveState = true
+            if (shouldShowBottomBar) {
+                AppNavBar(currentRoute, onNavigate = {
+                    navController.navigate(it) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
                     }
-                    launchSingleTop = true
-                    restoreState = true
-                }
-            })
+                })
+            }
         }
     ) { innerPadding ->
         AppNavHost(navController = navController, modifier = Modifier.padding(innerPadding))
