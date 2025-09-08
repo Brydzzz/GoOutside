@@ -1,12 +1,18 @@
 package com.example.gooutside.ui.photo
 
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import androidx.camera.view.CameraController
 import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -14,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -26,12 +33,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.gooutside.R
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.PermissionState
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.shouldShowRationale
@@ -39,6 +49,7 @@ import com.google.accompanist.permissions.shouldShowRationale
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun PhotoModeScreen(
+    onNavigateUp: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PhotoModeViewModel = hiltViewModel<PhotoModeViewModel>()
 ) {
@@ -49,7 +60,10 @@ fun PhotoModeScreen(
     if (cameraPermissionState.status.isGranted) {
         val photoModeUiState: PhotoModeUiState by viewModel.uiState.collectAsState()
         /*TODO: move to separate components */
-        Surface(modifier = modifier, color = MaterialTheme.colorScheme.secondaryContainer) {
+        Surface(
+            modifier = modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.secondaryContainer
+        ) {
             Column {
                 Text(text = "Log Your Day 📸", style = MaterialTheme.typography.headlineLarge)
                 Text(
@@ -88,8 +102,38 @@ fun PhotoModeScreen(
             }
         }
     } else {
-        {/*TODO move to permission denied screen composable*/ }
-        Column {
+        CameraPermissionScreen(
+            cameraPermissionState = cameraPermissionState,
+            onNavigateUp = onNavigateUp
+        )
+    }
+}
+
+@OptIn(ExperimentalPermissionsApi::class)
+@Composable
+fun CameraPermissionScreen(
+    cameraPermissionState: PermissionState,
+    onNavigateUp: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+        IconButton(onClick = onNavigateUp) {
+            Icon(
+                painter = painterResource(R.drawable.ic_arrow_back_24),
+                contentDescription = null
+            )
+        }
+
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
             val textToShow = if (cameraPermissionState.status.shouldShowRationale) {
                 // If the user has denied the permission but the rationale can be shown,
                 // then gently explain why the app requires this permission
@@ -99,13 +143,34 @@ fun PhotoModeScreen(
                 // doesn't want to be asked again for this permission, explain that the
                 // permission is required
                 "Camera permission required for this feature to be available. " +
-                        "Please grant the permission"
+                        "Please grant the permission."
             }
-            Text(textToShow)
+            Text(
+                textToShow,
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.size(14.dp))
             Button(onClick = { cameraPermissionState.launchPermissionRequest() }) {
                 Text("Request permission")
             }
+            Text("OR", style = MaterialTheme.typography.labelLarge)
+            Button(onClick = {
+                val intent = Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.fromParts("package", context.packageName, null)
+                )
+                context.startActivity(intent)
+            }) {
+                Text("Enable in settings")
+            }
         }
+
+        Text(
+            text = stringResource(R.string.request_permission_not_working_tip),
+            style = MaterialTheme.typography.labelSmall
+        )
     }
 }
 
