@@ -27,7 +27,7 @@ fun AppNavHost(
             )
         }
         composable(route = MainDestination.PhotoMode.route) {
-            PhotoModeScreen()
+            PhotoModeScreen(onNavigateUp = { navController.navigateUp() })
         }
         composable(route = MainDestination.Settings.route) {
             SettingsScreen()
