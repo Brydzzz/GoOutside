@@ -1,5 +1,7 @@
 package com.example.gooutside.ui.navigation
 
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
@@ -26,7 +28,16 @@ fun AppNavHost(
                 navigateToDiaryEntry = { /* TODO */ },
             )
         }
-        composable(route = MainDestination.PhotoMode.route) {
+        composable(
+            route = MainDestination.PhotoMode.route,
+            enterTransition = {
+                slideInVertically(initialOffsetY = { it })
+            },
+            exitTransition = {
+                slideOutVertically(targetOffsetY = { it })
+            },
+        )
+        {
             PhotoModeScreen(onNavigateUp = { navController.navigateUp() })
         }
         composable(route = MainDestination.Settings.route) {
