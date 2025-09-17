@@ -1,6 +1,7 @@
 package com.example.gooutside
 
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -23,8 +24,13 @@ fun GoOutsideApp(navController: NavHostController = rememberNavController()) {
     val routesWithoutBottomBar = listOf(MainDestination.PhotoMode.route)
     val shouldShowBottomBar = currentRoute !in routesWithoutBottomBar
 
+    val scaffoldColor = when (currentRoute) {
+        MainDestination.PhotoMode.route -> MaterialTheme.colorScheme.surfaceContainer
+        else -> MaterialTheme.colorScheme.background
+    }
+
     Scaffold(
-        modifier = Modifier,
+        containerColor = scaffoldColor,
         bottomBar = {
             if (shouldShowBottomBar) {
                 AppNavBar(currentRoute, onNavigate = {
