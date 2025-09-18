@@ -12,7 +12,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.gooutside"
-        minSdk = 27
+        minSdk = 28
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
@@ -69,6 +69,7 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     implementation(libs.androidx.hilt.navigation.compose)
+    implementation(libs.image.labeling)
     ksp(libs.androidx.room.compiler)
 
     // Hilt
