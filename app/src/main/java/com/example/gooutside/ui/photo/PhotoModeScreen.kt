@@ -1,12 +1,14 @@
 package com.example.gooutside.ui.photo
 
 import android.content.Intent
+import android.graphics.Bitmap
 import android.net.Uri
 import android.provider.Settings
 import androidx.annotation.DrawableRes
 import androidx.camera.view.CameraController
 import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -22,7 +24,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
@@ -32,16 +33,21 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -52,12 +58,15 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.gooutside.R
+import com.example.gooutside.ui.common.CustomAlertDialog
 import com.example.gooutside.ui.theme.GoOutsideTheme
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.PermissionState
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.shouldShowRationale
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 
 // TODO: move strings to string resources
@@ -74,15 +83,41 @@ fun PhotoModeScreen(
 
     if (cameraPermissionState.status.isGranted) {
         val photoModeUiState: PhotoModeUiState by viewModel.uiState.collectAsState()
+        val coroutineScope = rememberCoroutineScope()
+
+        val lifecycleOwner = LocalLifecycleOwner.current
+        val context = LocalContext.current
+        val cameraController = remember {
+            LifecycleCameraController(context).apply {
+                bindToLifecycle(lifecycleOwner)
+                setEnabledUseCases(
+                    CameraController.IMAGE_CAPTURE or CameraController.IMAGE_ANALYSIS
+                )
+            }
+        }
+        cameraController.cameraSelector = photoModeUiState.cameraFacing.value
+        cameraController.imageCaptureFlashMode = photoModeUiState.flashMode.value
+
         Surface(
             modifier = modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.surfaceContainer
         ) {
-            if (photoModeUiState.analysisPassed) {
-                AddToDiaryDialog(
-                    { viewModel.savingToDiaryDismissed() },
-                    { viewModel.savePhoto() })
+            if (photoModeUiState.analysisState == AnalysisState.AFTER) {
+                when (photoModeUiState.analysisPassed) {
+                    true -> AddToDiaryDialog(
+                        onDismissRequest = { viewModel.resetUiState() },
+                        onConfirmation = { coroutineScope.launch { viewModel.onSaveToDiaryConfirmed() } })
+
+                    false -> AnalysisFailedDialog(
+                        onDismissRequest = {
+                            viewModel.resetUiState()
+                            onNavigateUp()
+                        },
+                        onConfirmation = { viewModel.resetUiState() }
+                    )
+                }
             }
+
             Column(
                 modifier = Modifier.padding(
                     top = 12.dp,
@@ -95,10 +130,11 @@ fun PhotoModeScreen(
             ) {
                 PhotoModeHeader()
                 CameraPreviewStyled(
-                    onCapture = { viewModel.onCapture() },
-                    cameraFacing = photoModeUiState.cameraFacing,
-                    flashMode = photoModeUiState.flashMode,
-                    isAnalysing = photoModeUiState.isAnalysing
+                    onCapture = { viewModel.onCapture(cameraController) },
+                    cameraController = cameraController,
+                    showAnalysisOverlay = photoModeUiState.showAnalysisOverlay,
+                    capturedImageBitmap = photoModeUiState.capturedImageBitmap,
+                    analysisState = photoModeUiState.analysisState
                 )
                 CameraButtons(
                     onNavigateUp = onNavigateUp,
@@ -140,11 +176,22 @@ fun PhotoModeHeader(modifier: Modifier = Modifier) {
 
 @Composable
 fun CameraPreviewStyled(
-    isAnalysing: Boolean,
-    cameraFacing: CameraFacing,
-    flashMode: FlashMode,
+    showAnalysisOverlay: Boolean,
+    capturedImageBitmap: Bitmap?,
+    cameraController: LifecycleCameraController,
+    analysisState: AnalysisState,
     onCapture: () -> Unit
 ) {
+    var shutterFlash by remember { mutableStateOf(false) }
+
+    LaunchedEffect(analysisState) {
+        if (analysisState == AnalysisState.DURING) {
+            shutterFlash = true
+            delay(100)
+            shutterFlash = false
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxHeight(0.9f)
@@ -157,8 +204,7 @@ fun CameraPreviewStyled(
     ) {
         CameraPreview(
             modifier = Modifier.align(Alignment.TopCenter),
-            cameraFacing = cameraFacing,
-            flashMode = flashMode
+            cameraController = cameraController
         )
         FilledIconButton(
             modifier = Modifier
@@ -166,7 +212,10 @@ fun CameraPreviewStyled(
                 .size(66.dp)
                 .align(Alignment.BottomCenter),
             shape = CircleShape,
-            onClick = onCapture
+            onClick = {
+                onCapture()
+                shutterFlash = true
+            },
         ) {
             Icon(
                 painter = painterResource(R.drawable.ic_photo_camera_24),
@@ -176,11 +225,27 @@ fun CameraPreviewStyled(
             )
         }
 
-        if (isAnalysing) {
+        if (shutterFlash) {
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .background(Color(red = 0, green = 0, blue = 0, alpha = 115)),
+                    .background(Color.Black.copy(alpha = 0.5f))
+            )
+        }
+
+        if (showAnalysisOverlay) {
+            capturedImageBitmap?.let { bitmap ->
+                Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = "Captured photo",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.matchParentSize()
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(Color(red = 0, green = 0, blue = 0, alpha = 125)),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -303,21 +368,7 @@ fun CameraPermissionScreen(
 
 
 @Composable
-fun CameraPreview(modifier: Modifier = Modifier, cameraFacing: CameraFacing, flashMode: FlashMode) {
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val context = LocalContext.current
-    val cameraController = remember {
-        LifecycleCameraController(context).apply {
-            bindToLifecycle(lifecycleOwner)
-            setEnabledUseCases(
-                CameraController.IMAGE_CAPTURE or CameraController.IMAGE_ANALYSIS
-            )
-        }
-    }
-
-    cameraController.cameraSelector = cameraFacing.value
-    cameraController.imageCaptureFlashMode = flashMode.value
-
+fun CameraPreview(modifier: Modifier = Modifier, cameraController: LifecycleCameraController) {
     AndroidView(
         modifier = modifier.fillMaxSize(),
         factory = { context ->
@@ -333,50 +384,49 @@ fun AddToDiaryDialog(
     onDismissRequest: () -> Unit,
     onConfirmation: () -> Unit,
 ) {
-    AlertDialog(
-        icon = {
-            Icon(
-                painter = painterResource(R.drawable.ic_save_24),
-                contentDescription = "Save icon"
-            )
-        },
-        title = {
-            Text(text = "Congrats!")
-        },
-        text = {
-            Text(
-                text = "Your photo passed the test. Would you like to save it to your diary?",
-                textAlign = TextAlign.Center
-            )
-        },
-        onDismissRequest = {
-            onDismissRequest()
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    onConfirmation()
-                },
-            ) {
-                Text("Save to Diary")
-            }
-        },
-        dismissButton = {
-            TextButton(
-                onClick = {
-                    onDismissRequest()
-                }
-            ) {
-                Text("Discard")
-            }
-        }
+    CustomAlertDialog(
+        onDismissRequest = onDismissRequest,
+        onConfirmation = onConfirmation,
+        dialogTitle = "Congrats!",
+        dialogText = "Your photo passed the test. Would you like to save it to your diary?",
+        iconId = R.drawable.ic_save_24,
+        iconDescription = "Save icon",
+        confirmButtonText = "Save to Diary",
+        dismissButtonText = "Discard"
     )
 }
+
+@Composable
+fun AnalysisFailedDialog(
+    onDismissRequest: () -> Unit,
+    onConfirmation: () -> Unit
+) {
+    CustomAlertDialog(
+        onDismissRequest = onDismissRequest,
+        onConfirmation = onConfirmation,
+        dialogTitle = "Oops",
+        dialogText = "Your photo hasn't passed the test. Would you like to retake it?",
+        iconId = R.drawable.ic_test_failed_24,
+        iconDescription = "Test failed icon",
+        confirmButtonText = "Retake",
+        dismissButtonText = "Back to home"
+    )
+
+}
+
 
 @Preview
 @Composable
 fun AddToDiaryDialogPreview() {
     GoOutsideTheme {
         AddToDiaryDialog({}, {})
+    }
+}
+
+@Preview
+@Composable
+fun AnalysisFailedDialogPreview() {
+    GoOutsideTheme {
+        AnalysisFailedDialog({}, {})
     }
 }
