@@ -39,7 +39,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -66,7 +65,6 @@ import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.shouldShowRationale
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 
 @OptIn(ExperimentalPermissionsApi::class)
@@ -82,7 +80,6 @@ fun PhotoModeScreen(
 
     if (cameraPermissionState.status.isGranted) {
         val photoModeUiState: PhotoModeUiState by viewModel.uiState.collectAsState()
-        val coroutineScope = rememberCoroutineScope()
 
         val lifecycleOwner = LocalLifecycleOwner.current
         val context = LocalContext.current
@@ -105,7 +102,7 @@ fun PhotoModeScreen(
                 when (photoModeUiState.analysisPassed) {
                     true -> AddToDiaryDialog(
                         onDismissRequest = { viewModel.resetUiState() },
-                        onConfirmation = { coroutineScope.launch { viewModel.onSaveToDiaryConfirmed() } })
+                        onConfirmation = { viewModel.onSaveToDiaryConfirmed() })
 
                     false -> AnalysisFailedDialog(
                         onDismissRequest = {
@@ -215,12 +212,12 @@ fun CameraPreviewStyled(
                 onCapture()
                 shutterFlash = true
             },
+            enabled = analysisState != AnalysisState.DURING
         ) {
             Icon(
                 painter = painterResource(R.drawable.ic_photo_camera_24),
-                tint = MaterialTheme.colorScheme.surface,
                 contentDescription = null,
-                modifier = Modifier.size(36.dp)
+                modifier = Modifier.size(36.dp),
             )
         }
 
@@ -251,7 +248,7 @@ fun CameraPreviewStyled(
                     Text(
                         stringResource(R.string.analysing_photo_message),
                         style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.surface
+                        color = Color(0xFFFFF8F4)
                     )
                     Spacer(Modifier.size(6.dp))
                     CircularProgressIndicator(
