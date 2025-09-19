@@ -16,6 +16,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.gooutside.R
 import com.example.gooutside.data.DiaryEntriesRepository
 import com.example.gooutside.data.PhotoRepository
+import com.example.gooutside.data.PhotoSaveResult
 import com.example.gooutside.domain.AnalyzeImageUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -31,6 +32,8 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
+
+// TODO: Clean up and refactor
 @HiltViewModel
 class PhotoModeViewModel @Inject constructor(
     private val analyzeImageUseCase: AnalyzeImageUseCase,
@@ -44,8 +47,6 @@ class PhotoModeViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(PhotoModeUiState())
     val uiState: StateFlow<PhotoModeUiState> = _uiState.asStateFlow()
-
-    private var _capturedImageProxy: ImageProxy? = null
 
     fun toggleFlash() {
         _uiState.update { it.copy(flashMode = it.flashMode.next()) }
@@ -68,10 +69,10 @@ class PhotoModeViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val imageProxy = capturePhotoToMemory(controller)
-                _capturedImageProxy = imageProxy
 
                 val analysisPassed = analyzeImageUseCase(imageProxy)
                 Log.d(TAG, "analyzeImageUseCase completed: $analysisPassed")
+                imageProxy.close()
 
                 delay(1500) // delay for ux
 
@@ -83,15 +84,29 @@ class PhotoModeViewModel @Inject constructor(
         }
     }
 
-    // TODO: implement savePhoto
-    suspend fun onSaveToDiaryConfirmed() {
-        // for test
+    // TODO: implement
+    fun onSaveToDiaryConfirmed() {
+        Log.d(TAG, "onSaveToDiaryConfirmed called")
+        viewModelScope.launch {
+            val savePhotoResult =
+                _uiState.value.capturedImageBitmap?.let { photoRepository.saveToMediaStore(it) }
+
+            when (savePhotoResult) {
+                is PhotoSaveResult.Success ->
+                    Log.d(TAG, "Photo saved to MediaStore: ${savePhotoResult.uri}")
+
+                else ->
+                    Log.e(TAG, "Photo saving to MediaStore failed")
+            }
+
+            // TODO: create diary entry and save it
+
+
+        }
         resetUiState()
     }
 
     fun resetUiState() {
-        _capturedImageProxy?.close()
-        _capturedImageProxy = null
         _uiState.update {
             it.copy(
                 analysisPassed = false,
@@ -108,7 +123,9 @@ class PhotoModeViewModel @Inject constructor(
             val cameraExecutor = Dispatchers.Default.asExecutor()
             controller.takePicture(cameraExecutor, object : ImageCapture.OnImageCapturedCallback() {
                 override fun onCaptureSuccess(image: ImageProxy) {
-                    viewModelScope.launch(Dispatchers.Default) {
+                    continuation.resume(image)
+
+                    viewModelScope.launch {
                         val previewBitmap = createPreviewBitmap(image)
                         _uiState.update {
                             it.copy(
@@ -117,7 +134,6 @@ class PhotoModeViewModel @Inject constructor(
                             )
                         }
                     }
-                    continuation.resume(image)
                 }
 
                 override fun onError(exception: ImageCaptureException) {
@@ -133,7 +149,6 @@ class PhotoModeViewModel @Inject constructor(
             it.copy(
                 analysisPassed = analysisPassed,
                 analysisState = AnalysisState.AFTER,
-                capturedImageBitmap = null,
                 showAnalysisOverlay = false
             )
         }
