@@ -69,7 +69,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 
-// TODO: move strings to string resources
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun PhotoModeScreen(
@@ -161,12 +160,12 @@ fun PhotoModeHeader(modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Text(
-            text = "Log Your Day 📸",
+            text = stringResource(R.string.log_your_day),
             style = MaterialTheme.typography.headlineLarge,
             textAlign = TextAlign.Center
         )
         Text(
-            text = "Take a photo outdoors. The app will analyse it to confirm it's and outside shot.",
+            text = stringResource(R.string.take_a_photo_prompt),
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center
         )
@@ -237,7 +236,7 @@ fun CameraPreviewStyled(
             capturedImageBitmap?.let { bitmap ->
                 Image(
                     bitmap = bitmap.asImageBitmap(),
-                    contentDescription = "Captured photo",
+                    contentDescription = stringResource(R.string.captured_photo_content_description),
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.matchParentSize()
                 )
@@ -250,7 +249,7 @@ fun CameraPreviewStyled(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        "Analysing your photo...",
+                        stringResource(R.string.analysing_photo_message),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.surface
                     )
@@ -329,13 +328,12 @@ fun CameraPermissionScreen(
             val textToShow = if (cameraPermissionState.status.shouldShowRationale) {
                 // If the user has denied the permission but the rationale can be shown,
                 // then gently explain why the app requires this permission
-                "The camera is important for this app. Please grant the permission."
+                stringResource(R.string.camera_permission_rationale)
             } else {
                 // If it's the first time the user lands on this feature, or the user
                 // doesn't want to be asked again for this permission, explain that the
                 // permission is required
-                "Camera permission required for this feature to be available. " +
-                        "Please grant the permission."
+                stringResource(R.string.camera_permission_required_message)
             }
             Text(
                 textToShow,
@@ -345,7 +343,7 @@ fun CameraPermissionScreen(
 
             Spacer(modifier = Modifier.size(14.dp))
             Button(onClick = { cameraPermissionState.launchPermissionRequest() }) {
-                Text("Request permission")
+                Text(stringResource(R.string.request_permission_btn))
             }
             Text("OR", style = MaterialTheme.typography.labelLarge)
             Button(onClick = {
@@ -355,7 +353,7 @@ fun CameraPermissionScreen(
                 )
                 context.startActivity(intent)
             }) {
-                Text("Enable in settings")
+                Text(stringResource(R.string.enable_in_settings_btn))
             }
         }
 
@@ -387,12 +385,12 @@ fun AddToDiaryDialog(
     CustomAlertDialog(
         onDismissRequest = onDismissRequest,
         onConfirmation = onConfirmation,
-        dialogTitle = "Congrats!",
-        dialogText = "Your photo passed the test. Would you like to save it to your diary?",
+        dialogTitle = stringResource(R.string.test_passed_dialog_title),
+        dialogText = stringResource(R.string.test_passed_dialog_text),
         iconId = R.drawable.ic_save_24,
-        iconDescription = "Save icon",
-        confirmButtonText = "Save to Diary",
-        dismissButtonText = "Discard"
+        iconDescription = stringResource(R.string.save_icon_description),
+        confirmButtonText = stringResource(R.string.save_to_diary_btn),
+        dismissButtonText = stringResource(R.string.discard_dialog_btn)
     )
 }
 
@@ -404,12 +402,12 @@ fun AnalysisFailedDialog(
     CustomAlertDialog(
         onDismissRequest = onDismissRequest,
         onConfirmation = onConfirmation,
-        dialogTitle = "Oops",
-        dialogText = "Your photo hasn't passed the test. Would you like to retake it?",
+        dialogTitle = stringResource(R.string.test_failed_dialog_title),
+        dialogText = stringResource(R.string.test_failed_dialog_text),
         iconId = R.drawable.ic_test_failed_24,
-        iconDescription = "Test failed icon",
-        confirmButtonText = "Retake",
-        dismissButtonText = "Back to home"
+        iconDescription = stringResource(R.string.test_failed_icon_description),
+        confirmButtonText = stringResource(R.string.retake_btn),
+        dismissButtonText = stringResource(R.string.back_to_home_btn_text)
     )
 
 }
