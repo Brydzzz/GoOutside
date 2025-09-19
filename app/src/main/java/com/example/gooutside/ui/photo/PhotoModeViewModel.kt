@@ -146,6 +146,12 @@ class PhotoModeViewModel @Inject constructor(
             val rotation = imageProxy.imageInfo.rotationDegrees
 
             val matrix = Matrix().apply { postRotate(rotation.toFloat()) }
+
+            // Flip horizontally when front camera was used to show photo as previewed
+            if (_uiState.value.cameraFacing.value == CameraSelector.DEFAULT_FRONT_CAMERA) {
+                matrix.postScale(-1f, 1f)
+            }
+
             val rotatedBitmap = Bitmap.createBitmap(
                 bitmap,
                 0, 0,
@@ -163,11 +169,6 @@ class PhotoModeViewModel @Inject constructor(
         }
 
     }
-
-    init {
-        resetUiState()
-    }
-
 }
 
 enum class FlashMode(val value: Int, @DrawableRes val icon: Int) {
