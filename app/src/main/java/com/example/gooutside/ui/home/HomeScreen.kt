@@ -1,6 +1,5 @@
 package com.example.gooutside.ui.home
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -31,6 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
 import com.example.gooutside.R
 import com.example.gooutside.data.DiaryEntry
 import com.example.gooutside.ui.theme.GoOutsideTheme
@@ -148,8 +148,9 @@ fun DiaryEntryCard(entry: DiaryEntry, modifier: Modifier = Modifier) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Image(
-            painter = painterResource(id = R.drawable.diary_test_image), // TODO replace with entry image
+        // todo: add fallback when imagepath fails
+        AsyncImage(
+            model = entry.imagePath,
             contentDescription = "Image for diary entry from ${entry.formattedDate()}",
             contentScale = ContentScale.Crop,
             modifier = Modifier
