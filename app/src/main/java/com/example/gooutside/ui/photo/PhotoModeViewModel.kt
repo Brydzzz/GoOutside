@@ -15,6 +15,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gooutside.R
 import com.example.gooutside.data.DiaryEntriesRepository
+import com.example.gooutside.data.DiaryEntry
 import com.example.gooutside.data.PhotoRepository
 import com.example.gooutside.data.PhotoSaveResult
 import com.example.gooutside.domain.AnalyzeImageUseCase
@@ -27,6 +28,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import javax.inject.Inject
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -92,16 +94,25 @@ class PhotoModeViewModel @Inject constructor(
                 _uiState.value.capturedImageBitmap?.let { photoRepository.saveToMediaStore(it) }
 
             when (savePhotoResult) {
-                is PhotoSaveResult.Success ->
+                is PhotoSaveResult.Success -> {
                     Log.d(TAG, "Photo saved to MediaStore: ${savePhotoResult.uri}")
+                    // TODO: get real location data
+                    val entry = DiaryEntry(
+                        creationDate = LocalDate.now(),
+                        imagePath = savePhotoResult.uri,
+                        street = null,
+                        city = null,
+                        country = null,
+                        longitude = null,
+                        latitude = null,
+                    )
+
+                    diaryRepository.insertDiaryEntry(entry)
+                }
 
                 else ->
                     Log.e(TAG, "Photo saving to MediaStore failed")
             }
-
-            // TODO: create diary entry and save it
-
-
         }
         resetUiState()
     }
@@ -214,6 +225,7 @@ enum class AnalysisState {
     AFTER
 }
 
+// todo: check if photo was already taken today
 data class PhotoModeUiState(
     val cameraFacing: CameraFacing = CameraFacing.BACK,
     val flashMode: FlashMode = FlashMode.OFF,
