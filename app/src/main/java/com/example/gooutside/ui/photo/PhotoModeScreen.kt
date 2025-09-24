@@ -4,6 +4,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
 import android.provider.Settings
+import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.camera.view.CameraController
 import androidx.camera.view.LifecycleCameraController
@@ -102,7 +103,15 @@ fun PhotoModeScreen(
                 when (photoModeUiState.analysisPassed) {
                     true -> AddToDiaryDialog(
                         onDismissRequest = { viewModel.resetUiState() },
-                        onConfirmation = { viewModel.onSaveToDiaryConfirmed() })
+                        onConfirmation = {
+                            viewModel.onSaveToDiaryConfirmed()
+                            Toast.makeText(
+                                context,
+                                "Diary entry saved!",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            onNavigateUp()
+                        })
 
                     false -> AnalysisFailedDialog(
                         onDismissRequest = {
