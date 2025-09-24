@@ -70,6 +70,7 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.image.labeling)
+    implementation(libs.coil.compose)
     ksp(libs.androidx.room.compiler)
 
     // Hilt
