@@ -2,6 +2,7 @@ package com.example.gooutside.ui.photo
 
 import android.graphics.Bitmap
 import android.graphics.Matrix
+import android.os.Build
 import android.util.Log
 import androidx.annotation.DrawableRes
 import androidx.annotation.OptIn
@@ -19,6 +20,8 @@ import com.example.gooutside.data.DiaryEntry
 import com.example.gooutside.data.PhotoRepository
 import com.example.gooutside.data.PhotoSaveResult
 import com.example.gooutside.domain.AnalyzeImageUseCase
+import com.example.gooutside.location.LocationDetails
+import com.example.gooutside.location.LocationManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asExecutor
@@ -40,7 +43,8 @@ import kotlin.coroutines.suspendCoroutine
 class PhotoModeViewModel @Inject constructor(
     private val analyzeImageUseCase: AnalyzeImageUseCase,
     private val photoRepository: PhotoRepository,
-    private val diaryRepository: DiaryEntriesRepository
+    private val diaryRepository: DiaryEntriesRepository,
+    private val locationManager: LocationManager
 ) : ViewModel() {
 
     companion object {
@@ -90,6 +94,7 @@ class PhotoModeViewModel @Inject constructor(
     fun onSaveToDiaryConfirmed() {
         Log.d(TAG, "onSaveToDiaryConfirmed called")
         viewModelScope.launch {
+            _uiState.update { it.copy(isSaving = true) }
             val savePhotoResult =
                 _uiState.value.capturedImageBitmap?.let { photoRepository.saveToMediaStore(it) }
 
@@ -97,14 +102,29 @@ class PhotoModeViewModel @Inject constructor(
                 is PhotoSaveResult.Success -> {
                     Log.d(TAG, "Photo saved to MediaStore: ${savePhotoResult.uri}")
                     // TODO: get real location data
+
+                    val location = locationManager.getCurrentLocation()
+                    Log.d(TAG, "Location: $location")
+
+                    var locationDetails: LocationDetails? = null
+                    if (location != null) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            locationDetails = locationManager.reverseGeocode(location)
+                            Log.d(TAG, "Location details: $locationDetails")
+                        } else {
+                            locationDetails = locationManager.reverseGeocodeLegacy(location)
+                            Log.d(TAG, "Location details: $locationDetails")
+                        }
+                    }
+
                     val entry = DiaryEntry(
                         creationDate = LocalDate.now(),
                         imagePath = savePhotoResult.uri,
-                        street = null,
-                        city = null,
-                        country = null,
-                        longitude = null,
-                        latitude = null,
+                        street = locationDetails?.street,
+                        city = locationDetails?.city,
+                        country = locationDetails?.country,
+                        longitude = location?.longitude,
+                        latitude = location?.latitude,
                     )
 
                     diaryRepository.insertDiaryEntry(entry)
@@ -113,8 +133,9 @@ class PhotoModeViewModel @Inject constructor(
                 else ->
                     Log.e(TAG, "Photo saving to MediaStore failed")
             }
+
+            resetUiState()
         }
-        resetUiState()
     }
 
     fun resetUiState() {
@@ -123,7 +144,8 @@ class PhotoModeViewModel @Inject constructor(
                 analysisPassed = false,
                 analysisState = AnalysisState.BEFORE,
                 capturedImageBitmap = null,
-                showAnalysisOverlay = false
+                showAnalysisOverlay = false,
+                isSaving = false
             )
         }
         Log.d(TAG, "resetUiState finished")
@@ -232,6 +254,7 @@ data class PhotoModeUiState(
     val analysisState: AnalysisState = AnalysisState.BEFORE,
     val analysisPassed: Boolean = false,
     val capturedImageBitmap: Bitmap? = null,
-    val showAnalysisOverlay: Boolean = false
+    val showAnalysisOverlay: Boolean = false,
+    val isSaving: Boolean = false
 )
 
