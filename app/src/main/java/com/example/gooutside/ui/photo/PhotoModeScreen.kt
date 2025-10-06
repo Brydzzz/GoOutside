@@ -61,9 +61,8 @@ import com.example.gooutside.R
 import com.example.gooutside.ui.common.CustomAlertDialog
 import com.example.gooutside.ui.theme.GoOutsideTheme
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.PermissionState
-import com.google.accompanist.permissions.isGranted
-import com.google.accompanist.permissions.rememberPermissionState
+import com.google.accompanist.permissions.MultiplePermissionsState
+import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.google.accompanist.permissions.shouldShowRationale
 import kotlinx.coroutines.delay
 
@@ -75,11 +74,15 @@ fun PhotoModeScreen(
     modifier: Modifier = Modifier,
     viewModel: PhotoModeViewModel = hiltViewModel<PhotoModeViewModel>()
 ) {
-    val cameraPermissionState = rememberPermissionState(
-        android.Manifest.permission.CAMERA
+    val permissionsState = rememberMultiplePermissionsState(
+        listOf(
+            android.Manifest.permission.CAMERA,
+            android.Manifest.permission.ACCESS_COARSE_LOCATION,
+            android.Manifest.permission.ACCESS_FINE_LOCATION
+        )
     )
 
-    if (cameraPermissionState.status.isGranted) {
+    if (permissionsState.allPermissionsGranted) {
         val photoModeUiState: PhotoModeUiState by viewModel.uiState.collectAsState()
 
         val lifecycleOwner = LocalLifecycleOwner.current
@@ -99,17 +102,21 @@ fun PhotoModeScreen(
             modifier = modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.surfaceContainer
         ) {
+
+            if (photoModeUiState.isSaving) {
+                Toast.makeText(
+                    context,
+                    "Saving diary entry...",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+
             if (photoModeUiState.analysisState == AnalysisState.AFTER) {
                 when (photoModeUiState.analysisPassed) {
                     true -> AddToDiaryDialog(
                         onDismissRequest = { viewModel.resetUiState() },
                         onConfirmation = {
                             viewModel.onSaveToDiaryConfirmed()
-                            Toast.makeText(
-                                context,
-                                "Diary entry saved!",
-                                Toast.LENGTH_SHORT
-                            ).show()
                             onNavigateUp()
                         })
 
@@ -150,8 +157,8 @@ fun PhotoModeScreen(
             }
         }
     } else {
-        CameraPermissionScreen(
-            cameraPermissionState = cameraPermissionState,
+        PermissionScreen(
+            permissionsState = permissionsState,
             onNavigateUp = onNavigateUp
         )
     }
@@ -308,12 +315,13 @@ fun CameraButtons(
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
-fun CameraPermissionScreen(
-    cameraPermissionState: PermissionState,
+fun PermissionScreen(
+    permissionsState: MultiplePermissionsState,
     onNavigateUp: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val revokedPermissions = permissionsState.revokedPermissions
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -331,7 +339,8 @@ fun CameraPermissionScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            val textToShow = if (cameraPermissionState.status.shouldShowRationale) {
+            // TODO updated based on which permission wasnt granted
+            val textToShow = if (revokedPermissions.any { it.status.shouldShowRationale }) {
                 // If the user has denied the permission but the rationale can be shown,
                 // then gently explain why the app requires this permission
                 stringResource(R.string.camera_permission_rationale)
@@ -348,7 +357,7 @@ fun CameraPermissionScreen(
             )
 
             Spacer(modifier = Modifier.size(14.dp))
-            Button(onClick = { cameraPermissionState.launchPermissionRequest() }) {
+            Button(onClick = { permissionsState.launchMultiplePermissionRequest() }) {
                 Text(stringResource(R.string.request_permission_btn))
             }
             Text("OR", style = MaterialTheme.typography.labelLarge)
