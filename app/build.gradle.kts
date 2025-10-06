@@ -68,13 +68,19 @@ dependencies {
     // Room
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
-    implementation(libs.androidx.hilt.navigation.compose)
+    implementation(libs.kotlinx.coroutines.play.services)
+    ksp(libs.androidx.room.compiler)
+
+    // Image
     implementation(libs.image.labeling)
     implementation(libs.coil.compose)
-    ksp(libs.androidx.room.compiler)
+
+    // Location
+    implementation(libs.play.services.location)
 
     // Hilt
     implementation(libs.hilt.android)
+    implementation(libs.androidx.hilt.navigation.compose)
     ksp(libs.hilt.compiler)
 
     testImplementation(libs.junit)
