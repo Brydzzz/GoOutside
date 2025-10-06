@@ -20,6 +20,8 @@ camerax = "1.4.2"
 accompanistPermissions = "0.37.3"
 imageLabeling = "17.0.9"
 coilCompose = "2.7.0"
+playServicesLocation = "21.3.0"
+kotlinxCoroutinesPlayServices = "1.10.2"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -54,6 +56,8 @@ androidx-camera-mlkit-vision = { group = "androidx.camera", name = "camera-mlkit
 accompanist-permissions = { group = "com.google.accompanist", name = "accompanist-permissions", version.ref = "accompanistPermissions" }
 image-labeling = { group = "com.google.mlkit", name = "image-labeling", version.ref = "imageLabeling" }
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coilCompose" }
+play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
+kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "kotlinxCoroutinesPlayServices" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
