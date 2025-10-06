@@ -113,7 +113,7 @@ fun DiarySection(
                 onDiaryEntryClick = { onDiaryEntryClick(it.id) },
                 modifier = Modifier
                     .verticalScroll(rememberScrollState())
-                    .padding(bottom = 16.dp),
+                    .padding(top = 8.dp, bottom = 14.dp),
             )
         }
     }
@@ -134,7 +134,6 @@ fun DiaryEntriesList(
                 entry,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(6.dp)
                     .clickable { onDiaryEntryClick(entry) })
         }
     }
@@ -146,7 +145,7 @@ fun DiaryEntryCard(entry: DiaryEntry, modifier: Modifier = Modifier) {
         modifier = modifier
             .background(MaterialTheme.colorScheme.tertiaryContainer, RoundedCornerShape(22.dp)),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // todo: add fallback when imagepath fails
         AsyncImage(
@@ -157,7 +156,7 @@ fun DiaryEntryCard(entry: DiaryEntry, modifier: Modifier = Modifier) {
                 .size(120.dp)
                 .clip(RoundedCornerShape(16.dp))
         )
-        Column {
+        Column(Modifier.padding(end = 8.dp)) {
             Text(entry.formattedDate(), style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.size(12.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -180,7 +179,7 @@ fun SectionHeaderPreview() {
     GoOutsideTheme { SectionHeader("Photo Diary") {} }
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, device = "id:pixel_8")
 @Composable
 fun DiarySectionPreview() {
     val entry1 = DiaryEntry(

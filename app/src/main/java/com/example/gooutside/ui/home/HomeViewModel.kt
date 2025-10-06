@@ -35,7 +35,7 @@ data class HomeUiState(
 
 
 fun DiaryEntry.formattedDate(): String {
-    val formatter = DateTimeFormatter.ofPattern("EEEE, dd MMM yyyy", Locale.getDefault())
+    val formatter = DateTimeFormatter.ofPattern("EE, dd MMM yyyy", Locale.getDefault())
     val formatted = creationDate.format(formatter)
     // Capitalize day names, because for some locales it is lowercase
     return formatted.replaceFirstChar {
