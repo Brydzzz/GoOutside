@@ -47,8 +47,9 @@ fun DiaryEntry.formattedDate(): String {
 fun DiaryEntry.formattedLocation(): String {
     val cityPart = city?.takeIf { it.isNotBlank() }.orEmpty()
     val countryPart = country?.takeIf { it.isNotBlank() }.orEmpty()
+    val streetNumberPart = streetNumber?.takeIf { it.isNotBlank() }.orEmpty()
     val streetPart = street?.takeIf { it.isNotBlank() }?.let {
-        if (cityPart.isNotEmpty() || countryPart.isNotEmpty()) "$it,\n" else it
+        if (cityPart.isNotEmpty() || countryPart.isNotEmpty()) "$it $streetNumberPart,\n" else "$it $streetNumberPart"
     }.orEmpty()
 
     return if (streetPart.isEmpty() && cityPart.isEmpty() && countryPart.isEmpty()) {
