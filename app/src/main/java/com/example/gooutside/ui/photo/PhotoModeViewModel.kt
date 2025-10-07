@@ -102,7 +102,7 @@ class PhotoModeViewModel @Inject constructor(
             when (savePhotoResult) {
                 is PhotoSaveResult.Success -> {
                     Log.d(TAG, "Photo saved to MediaStore: ${savePhotoResult.uri}")
-                    // TODO: get real location data
+
 
                     @SuppressLint("MissingPermission") // Is being checked in ui
                     val location = locationManager.getCurrentLocation()
@@ -123,6 +123,7 @@ class PhotoModeViewModel @Inject constructor(
                         creationDate = LocalDate.now(),
                         imagePath = savePhotoResult.uri,
                         street = locationDetails?.street,
+                        streetNumber = locationDetails?.streetNumber,
                         city = locationDetails?.city,
                         country = locationDetails?.country,
                         longitude = location?.longitude,
@@ -135,7 +136,7 @@ class PhotoModeViewModel @Inject constructor(
                 else ->
                     Log.e(TAG, "Photo saving to MediaStore failed")
             }
-
+            _uiState.update { it.copy(shouldNavigateUp = true) }
             resetUiState()
         }
     }
@@ -147,7 +148,7 @@ class PhotoModeViewModel @Inject constructor(
                 analysisState = AnalysisState.BEFORE,
                 capturedImageBitmap = null,
                 showAnalysisOverlay = false,
-                isSaving = false
+                isSaving = false,
             )
         }
         Log.d(TAG, "resetUiState finished")
@@ -257,6 +258,7 @@ data class PhotoModeUiState(
     val analysisPassed: Boolean = false,
     val capturedImageBitmap: Bitmap? = null,
     val showAnalysisOverlay: Boolean = false,
-    val isSaving: Boolean = false
+    val isSaving: Boolean = false,
+    val shouldNavigateUp: Boolean = false
 )
 

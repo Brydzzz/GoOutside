@@ -17,9 +17,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -47,31 +47,32 @@ class LocationManager @Inject constructor(
         }
 
         val freshLocation = try {
-            withTimeout(15000L) {
-                suspendCancellableCoroutine<Location?> { continuation ->
-                    val cancellationTokenSource = CancellationTokenSource()
+            suspendCancellableCoroutine<Location?> { continuation ->
+                val cancellationTokenSource = CancellationTokenSource()
 
-                    val request = CurrentLocationRequest.Builder()
-                        .setPriority(priority)
-                        .setDurationMillis(10000)
-                        .setMaxUpdateAgeMillis(30000)
-                        .build()
+                val request = CurrentLocationRequest.Builder()
+                    .setPriority(priority)
+                    .setDurationMillis(10000)
+                    .setMaxUpdateAgeMillis(30000)
+                    .build()
 
-                    fusedLocationClient.getCurrentLocation(request, cancellationTokenSource.token)
-                        .addOnSuccessListener { location ->
-                            Log.d("LocationManager", "Got fresh location: $location")
-                            continuation.resume(location) { cause, _, _ -> }
-                        }
-                        .addOnFailureListener { e ->
-                            Log.e("LocationManager", "Failed to get fresh location", e)
-                            continuation.resume(null) { cause, _, _ -> }
-                        }
-
-                    continuation.invokeOnCancellation {
-                        cancellationTokenSource.cancel()
+                fusedLocationClient.getCurrentLocation(request, cancellationTokenSource.token)
+                    .addOnSuccessListener { location ->
+                        Log.d("LocationManager", "Got fresh location: $location")
+                        continuation.resume(location) { cause, _, _ -> }
                     }
+                    .addOnFailureListener { e ->
+                        Log.e("LocationManager", "Failed to get fresh location", e)
+                        continuation.resume(null) { cause, _, _ -> }
+                    }
+
+                continuation.invokeOnCancellation {
+                    cancellationTokenSource.cancel()
                 }
             }
+        } catch (e: CancellationException) {
+            Log.e("LocationManager", "Location request was cancelled")
+            throw e // Re-throw to propagate cancellation properly
         } catch (e: Exception) {
             Log.e("LocationManager", "Error getting fresh location: ${e.message}")
             null
@@ -95,17 +96,19 @@ class LocationManager @Inject constructor(
     suspend fun reverseGeocode(location: Location): LocationDetails? =
         suspendCoroutine { continuation ->
             geocoder.getFromLocation(location.latitude, location.longitude, 1) { addresses ->
-                // Handle successful geocoding
                 addresses.firstOrNull()?.let { address ->
                     val street = address.thoroughfare
+                    val streetNumber = address.subThoroughfare
                     val city = address.locality
                     val country = address.countryName
-                    val locationDetails = LocationDetails(street, city, country)
+                    val locationDetails = LocationDetails(street, streetNumber, city, country)
+                    Log.d("Geocoder", "Location details: $locationDetails")
                     continuation.resume(locationDetails)
                 } ?: continuation.resume(null)
             }
         }
 
+    @Suppress("DEPRECATION")
     suspend fun reverseGeocodeLegacy(location: Location): LocationDetails? {
         return try {
             val addresses = withContext(Dispatchers.Default) {
@@ -113,9 +116,10 @@ class LocationManager @Inject constructor(
             }
             addresses?.firstOrNull()?.let { address ->
                 val street = address.thoroughfare
+                val streetNumber = address.subThoroughfare
                 val city = address.locality
                 val country = address.countryName
-                val locationDetails = LocationDetails(street, city, country)
+                val locationDetails = LocationDetails(street, streetNumber, city, country)
                 locationDetails
             }
         } catch (e: Exception) {
@@ -128,6 +132,7 @@ class LocationManager @Inject constructor(
 
 data class LocationDetails(
     val street: String? = null,
+    val streetNumber: String? = null,
     val city: String? = null,
     val country: String? = null,
 )
