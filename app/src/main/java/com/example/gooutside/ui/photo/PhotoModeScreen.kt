@@ -121,13 +121,18 @@ fun PhotoModeScreen(
                 ).show()
             }
 
+            LaunchedEffect(photoModeUiState.isSaving) {
+                if (!photoModeUiState.isSaving && photoModeUiState.shouldNavigateUp) {
+                    onNavigateUp()
+                }
+            }
+
             if (photoModeUiState.analysisState == AnalysisState.AFTER) {
                 when (photoModeUiState.analysisPassed) {
                     true -> AddToDiaryDialog(
                         onDismissRequest = { viewModel.resetUiState() },
                         onConfirmation = {
                             viewModel.onSaveToDiaryConfirmed()
-                            onNavigateUp()
                         })
 
                     false -> AnalysisFailedDialog(
