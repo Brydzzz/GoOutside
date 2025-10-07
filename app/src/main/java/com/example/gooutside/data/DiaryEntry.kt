@@ -11,6 +11,7 @@ data class DiaryEntry(
     val creationDate: LocalDate,
     val imagePath: String,
     val street: String?,
+    val streetNumber: String?,
     val city: String?,
     val country: String?,
     val longitude: Double?,
