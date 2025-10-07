@@ -1,6 +1,7 @@
 package com.example.gooutside.ui.photo
 
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
 import android.provider.Settings
@@ -62,6 +63,7 @@ import com.example.gooutside.ui.common.CustomAlertDialog
 import com.example.gooutside.ui.theme.GoOutsideTheme
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.MultiplePermissionsState
+import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.google.accompanist.permissions.shouldShowRationale
 import kotlinx.coroutines.delay
@@ -82,7 +84,15 @@ fun PhotoModeScreen(
         )
     )
 
-    if (permissionsState.allPermissionsGranted) {
+    val locationPermissions =
+        permissionsState.permissions.filter { it.permission != android.Manifest.permission.CAMERA }
+
+    val locationPermissionsGranted = locationPermissions.any { it.status.isGranted }
+    val cameraPermissionGranted = LocalContext.current.checkSelfPermission(
+        android.Manifest.permission.CAMERA
+    ) == PackageManager.PERMISSION_GRANTED
+
+    if (permissionsState.allPermissionsGranted || (locationPermissionsGranted && cameraPermissionGranted)) {
         val photoModeUiState: PhotoModeUiState by viewModel.uiState.collectAsState()
 
         val lifecycleOwner = LocalLifecycleOwner.current
@@ -339,16 +349,15 @@ fun PermissionScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // TODO updated based on which permission wasnt granted
             val textToShow = if (revokedPermissions.any { it.status.shouldShowRationale }) {
                 // If the user has denied the permission but the rationale can be shown,
                 // then gently explain why the app requires this permission
-                stringResource(R.string.camera_permission_rationale)
+                stringResource(R.string.permission_rationale)
             } else {
                 // If it's the first time the user lands on this feature, or the user
                 // doesn't want to be asked again for this permission, explain that the
                 // permission is required
-                stringResource(R.string.camera_permission_required_message)
+                stringResource(R.string.permission_required_message)
             }
             Text(
                 textToShow,
