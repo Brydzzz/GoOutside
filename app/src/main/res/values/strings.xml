@@ -14,8 +14,8 @@
     <string name="take_a_photo_prompt">Take a photo outdoors. The app will analyse it to confirm it\'s and outside shot.</string>
     <string name="captured_photo_content_description">Captured photo</string>
     <string name="analysing_photo_message">Analysing your photo…</string>
-    <string name="camera_permission_rationale">The camera is important for this app. Please grant the permission.</string>
-    <string name="camera_permission_required_message">Camera permission required for this feature to be available. Please grant the permission.</string>
+    <string name="permission_rationale">The camera and location permissions are important for this app. Please grant the permissions.</string>
+    <string name="permission_required_message">Camera and location permission required for this feature to be available. Please grant the permissions.</string>
     <string name="request_permission_btn">Request permission</string>
     <string name="enable_in_settings_btn">Enable in settings</string>
     <string name="test_passed_dialog_title">Congrats!</string>
