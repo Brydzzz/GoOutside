@@ -7,6 +7,7 @@ import android.location.Location
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
+import androidx.annotation.RequiresPermission
 import com.google.android.gms.location.CurrentLocationRequest
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
@@ -32,23 +33,14 @@ class LocationManager @Inject constructor(
 
     private val geocoder = Geocoder(context)
 
-
-    suspend fun getCurrentLocation(usePreciseLocation: Boolean = false): Location? {
+    @RequiresPermission(anyOf = [android.Manifest.permission.ACCESS_COARSE_LOCATION, android.Manifest.permission.ACCESS_FINE_LOCATION])
+    suspend fun getCurrentLocation(): Location? {
 
         val hasGrantedFineLocationPermission = context.checkSelfPermission(
             android.Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
 
-        val hasGrantedCoarseLocationPermission = context.checkSelfPermission(
-            android.Manifest.permission.ACCESS_COARSE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-
-        if (!hasGrantedFineLocationPermission && !hasGrantedCoarseLocationPermission) {
-            Log.d("LocationManager", "No location permission")
-            return null
-        }
-
-        val priority = if (usePreciseLocation) {
+        val priority = if (hasGrantedFineLocationPermission) {
             Priority.PRIORITY_HIGH_ACCURACY
         } else {
             Priority.PRIORITY_BALANCED_POWER_ACCURACY
@@ -102,7 +94,6 @@ class LocationManager @Inject constructor(
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     suspend fun reverseGeocode(location: Location): LocationDetails? =
         suspendCoroutine { continuation ->
-
             geocoder.getFromLocation(location.latitude, location.longitude, 1) { addresses ->
                 // Handle successful geocoding
                 addresses.firstOrNull()?.let { address ->
