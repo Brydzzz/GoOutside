@@ -1,5 +1,6 @@
 package com.example.gooutside.ui.photo
 
+import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.os.Build
@@ -103,6 +104,7 @@ class PhotoModeViewModel @Inject constructor(
                     Log.d(TAG, "Photo saved to MediaStore: ${savePhotoResult.uri}")
                     // TODO: get real location data
 
+                    @SuppressLint("MissingPermission") // Is being checked in ui
                     val location = locationManager.getCurrentLocation()
                     Log.d(TAG, "Location: $location")
 
