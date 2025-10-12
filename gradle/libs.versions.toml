@@ -23,9 +23,6 @@ coilCompose = "2.7.0"
 playServicesLocation = "21.3.0"
 kotlinxCoroutinesPlayServices = "1.10.2"
 imageLabelingCustom = "17.0.3"
-tensorflowLiteTaskVision = "0.4.4"
-tensorflowLiteSupport = "0.5.0"
-tensorflowLiteGpuDelegatePlugin = "0.4.4"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
