@@ -261,6 +261,7 @@ fun CameraPreviewStyled(
         }
 
         if (showAnalysisOverlay) {
+            // TODO display horizontal image horizontally
             capturedImageBitmap?.let { bitmap ->
                 Image(
                     bitmap = bitmap.asImageBitmap(),

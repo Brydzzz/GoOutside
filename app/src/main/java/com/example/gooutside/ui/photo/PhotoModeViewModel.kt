@@ -209,9 +209,8 @@ class PhotoModeViewModel @Inject constructor(
                 bitmap.width,
                 bitmap.height,
                 matrix,
-                false
+                true
             )
-            bitmap.recycle()
 
             rotatedBitmap
         } catch (e: Exception) {
