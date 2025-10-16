@@ -53,3 +53,14 @@ external servers. That also means it works even if the device is offline.
 <img src="./docs/screenshots/photoanalysis.png" title="" alt="photo mode analysis" width="418">
 
 <img src="./docs/screenshots/test_passed.png" title="" alt="photo mode test passed" width="418">
+
+### Diary Screen
+
+<img src="./docs/screenshots/diary_week.png" title="" alt="diary screen screenshot" width="418">
+
+<img src="./docs/screenshots/diary_month.png" title="" alt="diary screen screenshot" width="418">
+
+<img src="./docs/screenshots/diary_pick_date.png" title="" alt="diary screen screenshot" width="418">
+
+<img src="./docs/screenshots/diary_custom.png" title="" alt="diary screen screenshot" width="418">
+
