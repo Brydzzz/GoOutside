@@ -70,6 +70,7 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.image.labeling.custom)
+    implementation(libs.androidx.compose.material3)
     ksp(libs.androidx.room.compiler)
 
     // Image

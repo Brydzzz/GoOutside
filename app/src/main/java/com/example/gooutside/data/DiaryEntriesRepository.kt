@@ -1,6 +1,7 @@
 package com.example.gooutside.data
 
 import kotlinx.coroutines.flow.Flow
+import java.time.LocalDate
 
 interface DiaryEntriesRepository {
     fun getDiaryEntryStream(id: Int): Flow<DiaryEntry?>
@@ -8,6 +9,8 @@ interface DiaryEntriesRepository {
     fun getAllDiaryEntriesStream(): Flow<List<DiaryEntry>>
 
     fun getRecentEntries(): Flow<List<DiaryEntry>>
+
+    fun getEntriesForDateRange(startDate: LocalDate, endDate: LocalDate): Flow<List<DiaryEntry>>
 
     suspend fun insertDiaryEntry(diaryEntry: DiaryEntry)
 

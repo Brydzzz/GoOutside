@@ -1,6 +1,5 @@
 package com.example.gooutside.ui.home
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -22,17 +20,15 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.AsyncImage
 import com.example.gooutside.R
 import com.example.gooutside.data.DiaryEntry
+import com.example.gooutside.ui.common.DiaryEntriesList
 import com.example.gooutside.ui.theme.GoOutsideTheme
 import java.time.LocalDate
 
@@ -70,7 +66,7 @@ fun SectionHeader(headerText: String, onIconClick: () -> Unit) {
         Icon(
             painterResource(R.drawable.ic_arrow_forward_24),
             contentDescription = stringResource(R.string.arrow_forward_icon_content_description),
-            modifier = Modifier.clickable { onIconClick })
+            modifier = Modifier.clickable { onIconClick() })
     }
 }
 
@@ -115,59 +111,6 @@ fun DiarySection(
                     .verticalScroll(rememberScrollState())
                     .padding(top = 8.dp, bottom = 14.dp),
             )
-        }
-    }
-}
-
-@Composable
-fun DiaryEntriesList(
-    entriesList: List<DiaryEntry>,
-    onDiaryEntryClick: (DiaryEntry) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(16.dp), modifier = modifier
-
-    ) {
-        entriesList.forEach { entry ->
-            DiaryEntryCard(
-                entry,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onDiaryEntryClick(entry) })
-        }
-    }
-}
-
-@Composable
-fun DiaryEntryCard(entry: DiaryEntry, modifier: Modifier = Modifier) {
-    Row(
-        modifier = modifier
-            .background(MaterialTheme.colorScheme.tertiaryContainer, RoundedCornerShape(22.dp)),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        // todo: add fallback when imagepath fails
-        AsyncImage(
-            model = entry.imagePath,
-            contentDescription = "Image for diary entry from ${entry.formattedDate()}",
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .size(120.dp)
-                .clip(RoundedCornerShape(16.dp))
-        )
-        Column(Modifier.padding(end = 8.dp)) {
-            Text(entry.formattedDate(), style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.size(12.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    painterResource(R.drawable.ic_location_24), contentDescription = stringResource(
-                        R.string.location_icon_content_description
-                    )
-                )
-                Spacer(Modifier.size(4.dp))
-                Text(entry.formattedLocation(), style = MaterialTheme.typography.bodySmall)
-            }
         }
     }
 }
@@ -228,21 +171,4 @@ fun DiarySectionPreview() {
 @Composable
 fun DiarySectionNoEntriesPreview() {
     GoOutsideTheme { DiarySection({}, {}, emptyList(), modifier = Modifier.fillMaxSize()) }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun DiaryEntryPreview() {
-    val entry1 = DiaryEntry(
-        1,
-        LocalDate.of(2025, 5, 21),
-        "content://media/external/images/media/12345",
-        "Marszałkowska",
-        "14",
-        "Warsaw",
-        "Poland",
-        123.456,
-        789.012
-    )
-    GoOutsideTheme { DiaryEntryCard(entry1) }
 }
