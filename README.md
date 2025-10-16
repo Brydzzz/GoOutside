@@ -1,4 +1,4 @@
-# GoOutside (in progress)
+# GoOutside
 
 GoOutside is an Android application helps you develop a habit of going outside by logging daily entries. 
 
