@@ -33,3 +33,10 @@ enum class MainDestination(
         contentDescription = R.string.settings_nav_label
     )
 }
+
+enum class SectionDestination(
+    val route: String
+) {
+    Diary(route = "diary"),
+    Stats(route = "stats")
+}

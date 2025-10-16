@@ -1,6 +1,7 @@
 package com.example.gooutside.data
 
 import kotlinx.coroutines.flow.Flow
+import java.time.LocalDate
 import javax.inject.Inject
 
 class OfflineDiaryEntriesRepository @Inject constructor(private val diaryEntryDao: DiaryEntryDao) :
@@ -10,6 +11,12 @@ class OfflineDiaryEntriesRepository @Inject constructor(private val diaryEntryDa
     override fun getAllDiaryEntriesStream(): Flow<List<DiaryEntry>> = diaryEntryDao.getAll()
 
     override fun getRecentEntries(): Flow<List<DiaryEntry>> = diaryEntryDao.getRecentEntries()
+
+    override fun getEntriesForDateRange(
+        startDate: LocalDate,
+        endDate: LocalDate
+    ): Flow<List<DiaryEntry>> = diaryEntryDao.getEntriesForDateRange(startDate, endDate)
+
 
     override suspend fun insertDiaryEntry(diaryEntry: DiaryEntry) = diaryEntryDao.insert(diaryEntry)
 

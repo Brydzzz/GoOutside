@@ -8,7 +8,7 @@ junitVersion = "1.3.0"
 espressoCore = "3.7.0"
 lifecycleRuntimeKtx = "2.9.2"
 activityCompose = "1.10.1"
-composeBom = "2025.07.00"
+composeBom = "2025.10.00"
 navigationCompose = "2.9.3"
 navigationTesting = "2.9.3"
 appcompatResources = "1.7.1"
@@ -23,6 +23,7 @@ coilCompose = "2.7.0"
 playServicesLocation = "21.3.0"
 kotlinxCoroutinesPlayServices = "1.10.2"
 imageLabelingCustom = "17.0.3"
+material3 = "1.5.0-alpha06"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -60,6 +61,7 @@ coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coi
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
 kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "kotlinxCoroutinesPlayServices" }
 image-labeling-custom = { group = "com.google.mlkit", name = "image-labeling-custom", version.ref = "imageLabelingCustom" }
+androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

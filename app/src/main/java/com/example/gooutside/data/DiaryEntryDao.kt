@@ -7,6 +7,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
+import java.time.LocalDate
 
 @Dao
 interface DiaryEntryDao {
@@ -27,5 +28,9 @@ interface DiaryEntryDao {
 
     @Query("SELECT * FROM diary_entries ORDER BY creationDate DESC LIMIT 5")
     fun getRecentEntries(): Flow<List<DiaryEntry>>
+
+    @Query("SELECT * FROM diary_entries WHERE creationDate BETWEEN :startDate AND :endDate order by creationDate desc")
+    fun getEntriesForDateRange(startDate: LocalDate, endDate: LocalDate): Flow<List<DiaryEntry>>
+
 
 }

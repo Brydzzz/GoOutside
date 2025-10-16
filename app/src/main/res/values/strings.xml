@@ -8,6 +8,7 @@
     <string name="location_icon_content_description">Location icon</string>
     <string name="no_location">No location</string>
     <string name="arrow_forward_icon_content_description">Arrow forward icon</string>
+    <string name="arrow_back_icon_content_description">Arrow back icon</string>
     <string name="no_entries_prompt">No entries yet, use Photo Mode to add.</string>
     <string name="request_permission_not_working_tip">If you selected not to be asked again or denied the permission multiple times request permission button might not work. Try enabling the permission in settings instead.</string>
     <string name="log_your_day">Log Your Day 📸</string>

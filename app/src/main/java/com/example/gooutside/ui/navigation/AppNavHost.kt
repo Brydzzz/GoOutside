@@ -7,6 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.example.gooutside.ui.diary.DiaryScreen
 import com.example.gooutside.ui.home.HomeScreen
 import com.example.gooutside.ui.photo.PhotoModeScreen
 import com.example.gooutside.ui.settings.SettingsScreen
@@ -24,7 +25,7 @@ fun AppNavHost(
         composable(route = MainDestination.Home.route) {
             HomeScreen(
                 navigateToStatsPage = { /* TODO */ },
-                navigateToDiaryPage = { /* TODO */ },
+                navigateToDiaryPage = { navController.navigate(SectionDestination.Diary.route) },
                 navigateToDiaryEntry = { /* TODO */ },
             )
         }
@@ -43,5 +44,15 @@ fun AppNavHost(
         composable(route = MainDestination.Settings.route) {
             SettingsScreen()
         }
+        composable(route = SectionDestination.Diary.route) {
+            DiaryScreen(
+                navigateToHome = { navController.navigate(MainDestination.Home.route) },
+                onDiaryEntryClick = { /* TODO */ },
+            )
+        }
+        composable(route = SectionDestination.Stats.route) {
+            // TODO: Stats screen
+        }
+
     }
 }
