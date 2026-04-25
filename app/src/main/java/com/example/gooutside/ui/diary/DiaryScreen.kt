@@ -2,6 +2,7 @@ package com.example.gooutside.ui.diary
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -35,7 +36,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.gooutside.R
 import com.example.gooutside.data.DiaryEntry
 import com.example.gooutside.ui.common.BackButton
-import com.example.gooutside.ui.common.DiaryEntriesList
+import com.example.gooutside.ui.common.DiaryEntriesLazyList
 import com.example.gooutside.ui.theme.GoOutsideTheme
 import java.time.LocalDate
 
@@ -103,9 +104,11 @@ fun DiaryScreenBody(
                 onFilterChange = onFilterChange
             )
         }
-        DiaryEntriesList(
+        DiaryEntriesLazyList(
             entriesList = entriesList,
-            onDiaryEntryClick = { onDiaryEntryClick(it.id) })
+            onDiaryEntryClick = { onDiaryEntryClick(it.id) },
+            contentPadding = PaddingValues(bottom = 14.dp)
+        )
     }
 }
 
