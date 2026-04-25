@@ -1,5 +1,6 @@
 package com.example.gooutside.ui.home
 
+import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gooutside.data.DiaryEntriesRepository
@@ -14,6 +15,7 @@ import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
+@Stable
 class HomeViewModel @Inject constructor(private val diaryEntriesRepository: DiaryEntriesRepository) :
     ViewModel() {
     companion object {

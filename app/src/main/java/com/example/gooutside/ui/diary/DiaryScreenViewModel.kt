@@ -1,6 +1,7 @@
 package com.example.gooutside.ui.diary
 
 import androidx.annotation.DrawableRes
+import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gooutside.R
@@ -19,6 +20,7 @@ import java.time.ZoneOffset
 import javax.inject.Inject
 
 @HiltViewModel
+@Stable
 class DiaryScreenViewModel @Inject constructor(private val diaryEntriesRepository: DiaryEntriesRepository) :
     ViewModel() {
     private val _uiState = MutableStateFlow(DiaryScreenUiState())
@@ -95,7 +97,7 @@ class DiaryScreenViewModel @Inject constructor(private val diaryEntriesRepositor
 }
 
 data class DiaryScreenUiState(
-    var diaryEntries: List<DiaryEntry> = emptyList(),
+    val diaryEntries: List<DiaryEntry> = emptyList(),
     val dateRangeFilter: DateRangeFilter = DateRangeFilter.WEEK,
     val startDate: LocalDate = LocalDate.now().with(DayOfWeek.MONDAY),
     val endDate: LocalDate = LocalDate.now().with(DayOfWeek.MONDAY).plusDays(7),

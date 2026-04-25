@@ -1,6 +1,5 @@
 package com.example.gooutside.ui.diary
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -35,6 +34,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.gooutside.R
 import com.example.gooutside.data.DiaryEntry
+import com.example.gooutside.ui.common.BackButton
 import com.example.gooutside.ui.common.DiaryEntriesList
 import com.example.gooutside.ui.theme.GoOutsideTheme
 import java.time.LocalDate
@@ -87,10 +87,7 @@ fun DiaryScreenBody(
         Row(
             modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                painterResource(R.drawable.ic_arrow_back_24),
-                contentDescription = stringResource(R.string.arrow_back_icon_content_description),
-                modifier = Modifier.clickable { onNavigateUp() })
+            BackButton(onNavigateUp = onNavigateUp)
             Spacer(Modifier.size(10.dp))
             Text(
                 stringResource(R.string.diary_section_header),
@@ -116,6 +113,7 @@ fun DiaryScreenBody(
 @Composable
 fun DateFilter(checkedFilter: DateRangeFilter, onFilterChange: (DateRangeFilter) -> Unit) {
     ButtonGroup(
+        expandedRatio = 0f,
         overflowIndicator = { menuState ->
             ButtonGroupDefaults.OverflowIndicator(menuState = menuState)
         }
