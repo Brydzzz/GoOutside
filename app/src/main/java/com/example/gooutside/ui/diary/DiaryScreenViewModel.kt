@@ -102,7 +102,7 @@ data class DiaryScreenUiState(
     val showDateRangePicker: Boolean = false
 )
 
-enum class DateRangeFilter(val uiText: String, @DrawableRes val icon: Int) {
+enum class DateRangeFilter(val uiText: String, @param:DrawableRes val icon: Int) {
     WEEK("Week", R.drawable.ic_calendar_week_24),
     MONTH("Month", R.drawable.ic_calendar_month_24),
     CUSTOM("Custom", R.drawable.ic_date_range_24)

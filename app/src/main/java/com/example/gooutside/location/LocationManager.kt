@@ -26,7 +26,7 @@ import kotlin.coroutines.suspendCoroutine
 
 @Singleton
 class LocationManager @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
 ) {
     private val fusedLocationClient = LocationServices
         .getFusedLocationProviderClient(context)

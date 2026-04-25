@@ -13,7 +13,7 @@ import java.io.File
 import javax.inject.Inject
 
 class PhotoRepository @Inject constructor(
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) {
     companion object {
         private const val TAG = "PhotoRepository"

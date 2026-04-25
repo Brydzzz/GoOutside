@@ -221,7 +221,7 @@ class PhotoModeViewModel @Inject constructor(
     }
 }
 
-enum class FlashMode(val value: Int, @DrawableRes val icon: Int) {
+enum class FlashMode(val value: Int, @param:DrawableRes val icon: Int) {
     OFF(ImageCapture.FLASH_MODE_OFF, R.drawable.ic_flash_off_24),
     ON(ImageCapture.FLASH_MODE_ON, R.drawable.ic_flash_on_24),
     AUTO(ImageCapture.FLASH_MODE_AUTO, R.drawable.ic_flash_auto_24);

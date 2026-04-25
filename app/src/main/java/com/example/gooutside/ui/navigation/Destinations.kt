@@ -6,10 +6,10 @@ import com.example.gooutside.R
 
 enum class MainDestination(
     val route: String,
-    @StringRes val label: Int,
-    @DrawableRes val iconFilled: Int,
-    @DrawableRes val iconOutline: Int,
-    @StringRes val contentDescription: Int
+    @param:StringRes val label: Int,
+    @param:DrawableRes val iconFilled: Int,
+    @param:DrawableRes val iconOutline: Int,
+    @param:StringRes val contentDescription: Int
 ) {
     Home(
         route = "home",
