@@ -9,6 +9,8 @@ import androidx.annotation.DrawableRes
 import androidx.camera.view.CameraController
 import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -36,7 +38,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -65,7 +66,6 @@ import com.google.accompanist.permissions.MultiplePermissionsState
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.google.accompanist.permissions.shouldShowRationale
-import kotlinx.coroutines.delay
 
 
 @OptIn(ExperimentalPermissionsApi::class)
@@ -117,7 +117,7 @@ fun PhotoModeScreen(
             if (!forceDismiss) {
                 when (photoModeUiState.dialogState) {
                     DialogState.SUCCESS -> AddToDiaryDialog(
-                        onDismissRequest = { viewModel.resetUiState() },
+                        onDismissRequest = { viewModel.resetState() },
                         onConfirmation = {
                             forceDismiss = true
                             viewModel.onSaveToDiaryConfirmed()
@@ -129,7 +129,7 @@ fun PhotoModeScreen(
                             forceDismiss = true
                             onNavigateUp()
                         },
-                        onConfirmation = { viewModel.resetUiState() }
+                        onConfirmation = { viewModel.resetState() }
                     )
 
                     DialogState.NONE -> {}
@@ -151,7 +151,7 @@ fun PhotoModeScreen(
                     onCapture = { viewModel.onCapture(cameraController) },
                     cameraController = cameraController,
                     showAnalysisOverlay = photoModeUiState.showAnalysisOverlay,
-                    capturedImageBitmap = photoModeUiState.capturedImageBitmap,
+                    capturedImageBitmap = photoModeUiState.displayBitmap,
                     analysisState = photoModeUiState.analysisState
                 )
                 CameraButtons(
@@ -201,14 +201,12 @@ fun CameraPreviewStyled(
     onCapture: () -> Unit
 ) {
     var shutterFlash by remember { mutableStateOf(false) }
-
-    LaunchedEffect(analysisState) {
-        if (analysisState == AnalysisState.DURING) {
-            shutterFlash = true
-            delay(100)
-            shutterFlash = false
-        }
-    }
+    val flashAlpha by animateFloatAsState(
+        targetValue = if (shutterFlash) 0.5f else 0f,
+        animationSpec = tween(durationMillis = 100),
+        finishedListener = { shutterFlash = false },
+        label = "FlashAnimation"
+    )
 
     Box(
         modifier = Modifier
@@ -231,8 +229,8 @@ fun CameraPreviewStyled(
                 .align(Alignment.BottomCenter),
             shape = CircleShape,
             onClick = {
-                onCapture()
                 shutterFlash = true
+                onCapture()
             },
             enabled = analysisState != AnalysisState.DURING
         ) {
@@ -243,46 +241,49 @@ fun CameraPreviewStyled(
             )
         }
 
-        if (shutterFlash) {
+        if (flashAlpha > 0f) {
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .background(Color.Black.copy(alpha = 0.5f))
+                    .background(Color.Black.copy(alpha = flashAlpha))
             )
         }
 
         if (showAnalysisOverlay) {
-            // TODO display horizontal image horizontally
-            capturedImageBitmap?.let { bitmap ->
-                Image(
-                    bitmap = bitmap.asImageBitmap(),
-                    contentDescription = stringResource(R.string.captured_photo_content_description),
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.matchParentSize()
-                )
-            }
-            Box(
+            AnalysisOverlay(capturedImageBitmap, Modifier.matchParentSize())
+        }
+    }
+}
+
+@Composable
+fun AnalysisOverlay(capturedImageBitmap: Bitmap?, modifier: Modifier = Modifier) {
+    capturedImageBitmap?.let { bitmap ->
+        Image(
+            bitmap = bitmap.asImageBitmap(),
+            contentDescription = stringResource(R.string.captured_photo_content_description),
+            contentScale = ContentScale.Crop,
+            modifier = modifier
+        )
+    }
+    Box(
+        modifier = modifier
+            .background(Color(red = 0, green = 0, blue = 0, alpha = 125)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                stringResource(R.string.analysing_photo_message),
+                style = MaterialTheme.typography.titleMedium,
+                color = Color(0xFFFFF8F4)
+            )
+            Spacer(Modifier.size(6.dp))
+            CircularProgressIndicator(
                 modifier = Modifier
-                    .matchParentSize()
-                    .background(Color(red = 0, green = 0, blue = 0, alpha = 125)),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        stringResource(R.string.analysing_photo_message),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Color(0xFFFFF8F4)
-                    )
-                    Spacer(Modifier.size(6.dp))
-                    CircularProgressIndicator(
-                        modifier = Modifier
-                            .width(64.dp)
-                            .height(64.dp),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                    )
-                }
-            }
+                    .width(64.dp)
+                    .height(64.dp),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+            )
         }
     }
 }

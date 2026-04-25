@@ -6,13 +6,13 @@ import android.graphics.Matrix
 import android.os.Build
 import android.util.Log
 import androidx.annotation.DrawableRes
-import androidx.annotation.OptIn
 import androidx.camera.core.CameraSelector
-import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
 import androidx.camera.view.LifecycleCameraController
+import androidx.compose.runtime.Stable
+import androidx.core.graphics.scale
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gooutside.R
@@ -35,15 +35,16 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import java.time.LocalDate
 import javax.inject.Inject
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
 
 
 // TODO: Clean up and refactor
 @HiltViewModel
+@Stable
 class PhotoModeViewModel @Inject constructor(
     private val analyzeImageUseCase: AnalyzeImageUseCase,
     private val photoRepository: PhotoRepository,
@@ -56,6 +57,8 @@ class PhotoModeViewModel @Inject constructor(
     companion object {
         private const val TAG = "PhotoModeViewModel"
     }
+
+    private var pendingSaveBitmap: Bitmap? = null
 
     private val _uiState = MutableStateFlow(PhotoModeUiState())
     val uiState: StateFlow<PhotoModeUiState> = _uiState.asStateFlow()
@@ -90,7 +93,7 @@ class PhotoModeViewModel @Inject constructor(
 
                 updateUiStateAfterAnalysis(analysisPassed)
             } catch (e: Exception) {
-                resetUiState()
+                resetState()
                 Log.e(TAG, "Photo capture or analysis failed: ${e.message}", e)
             }
         }
@@ -98,8 +101,8 @@ class PhotoModeViewModel @Inject constructor(
 
     fun onSaveToDiaryConfirmed() {
         Log.d(TAG, "onSaveToDiaryConfirmed called")
-        val bitmapToSave = _uiState.value.capturedImageBitmap
-        resetUiState()
+        val bitmapToSave = pendingSaveBitmap
+        resetState()
 
         applicationScope.launch(Dispatchers.IO) {
             val savePhotoResult = bitmapToSave?.let { photoRepository.saveToMediaStore(it) }
@@ -154,33 +157,27 @@ class PhotoModeViewModel @Inject constructor(
         }
     }
 
-    fun resetUiState() {
+    fun resetState() {
         _uiState.update {
             it.copy(
                 analysisState = AnalysisState.BEFORE,
-                capturedImageBitmap = null,
                 showAnalysisOverlay = false,
                 dialogState = DialogState.NONE
             )
         }
-        Log.d(TAG, "resetUiState finished")
+        pendingSaveBitmap = null
+        Log.d(TAG, "resetState finished")
     }
 
     private suspend fun capturePhotoToMemory(controller: LifecycleCameraController): ImageProxy {
-        return suspendCoroutine { continuation ->
+        return suspendCancellableCoroutine { continuation ->
             val cameraExecutor = Dispatchers.Default.asExecutor()
             controller.takePicture(cameraExecutor, object : ImageCapture.OnImageCapturedCallback() {
                 override fun onCaptureSuccess(image: ImageProxy) {
                     continuation.resume(image)
 
                     viewModelScope.launch {
-                        val previewBitmap = createPreviewBitmap(image)
-                        _uiState.update {
-                            it.copy(
-                                capturedImageBitmap = previewBitmap,
-                                showAnalysisOverlay = true
-                            )
-                        }
+                        processCapture(image)
                     }
                 }
 
@@ -201,35 +198,45 @@ class PhotoModeViewModel @Inject constructor(
             )
         }
     }
-
-    @OptIn(ExperimentalGetImage::class)
-    private fun createPreviewBitmap(imageProxy: ImageProxy): Bitmap? {
-        return try {
-            val bitmap = imageProxy.toBitmap()
-            val rotation = imageProxy.imageInfo.rotationDegrees
-
-            val matrix = Matrix().apply { postRotate(rotation.toFloat()) }
-
-            // Flip horizontally when front camera was used to show photo as previewed
-            if (_uiState.value.cameraFacing.value == CameraSelector.DEFAULT_FRONT_CAMERA) {
-                matrix.postScale(-1f, 1f)
-            }
-
-            val rotatedBitmap = Bitmap.createBitmap(
-                bitmap,
-                0, 0,
-                bitmap.width,
-                bitmap.height,
-                matrix,
-                true
-            )
-
-            rotatedBitmap
-        } catch (e: Exception) {
-            Log.e(TAG, "Updating captured image bitmap failed: ${e.message}", e)
-            null
+    private fun processCapture(imageProxy: ImageProxy) {
+        val raw = imageProxy.toBitmap()
+        val rotation = imageProxy.imageInfo.rotationDegrees
+        val isFront = _uiState.value.cameraFacing.value == CameraSelector.DEFAULT_FRONT_CAMERA
+        val needsExtraRotation = rotation != 90
+        val extraRotation = when (rotation) {
+            // adjust for portrait display
+            0 -> 90f
+            180 -> -90f
+            270 -> 180f
+            else -> 0f
         }
+        val scale = 1080f / maxOf(raw.width, raw.height)
+        val scaledWidth = (raw.width * scale).toInt()
+        val scaledHeight = (raw.height * scale).toInt()
+        val scaled = raw.scale(scaledWidth, scaledHeight)
 
+
+        val displayMatrix = Matrix().apply {
+            postRotate(rotation.toFloat())
+            if (isFront) postScale(-1f, 1f)
+            if (needsExtraRotation) postRotate(extraRotation)
+        }
+        val displayBitmap = Bitmap.createBitmap(scaled, 0, 0, scaled.width, scaled.height, displayMatrix, true)
+        scaled.recycle()
+
+
+        val saveMatrix = Matrix().apply {
+            postRotate(rotation.toFloat())
+            if (isFront) postScale(-1f, 1f)
+        }
+        val saveBitmap = Bitmap.createBitmap(raw, 0, 0, raw.width, raw.height, saveMatrix, true)
+        raw.recycle()
+
+        pendingSaveBitmap = saveBitmap
+        _uiState.update { it.copy(
+            displayBitmap = displayBitmap,
+            showAnalysisOverlay = true
+        )}
     }
 }
 
@@ -273,7 +280,7 @@ data class PhotoModeUiState(
     val flashMode: FlashMode = FlashMode.OFF,
     val analysisState: AnalysisState = AnalysisState.BEFORE,
     val dialogState: DialogState = DialogState.NONE,
-    val capturedImageBitmap: Bitmap? = null,
+    val displayBitmap: Bitmap? = null,
     val showAnalysisOverlay: Boolean = false,
 )
 
