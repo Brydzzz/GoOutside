@@ -5,7 +5,6 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
 import android.provider.Settings
-import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.camera.view.CameraController
 import androidx.camera.view.LifecycleCameraController
@@ -108,40 +107,32 @@ fun PhotoModeScreen(
         cameraController.cameraSelector = photoModeUiState.cameraFacing.value
         cameraController.imageCaptureFlashMode = photoModeUiState.flashMode.value
 
+        // to start dialog animation early, changing dialogState in VM is too slow
+        var forceDismiss by remember { mutableStateOf(false) }
+
         Surface(
             modifier = modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.surfaceContainer
         ) {
-
-            if (photoModeUiState.isSaving) {
-                Toast.makeText(
-                    context,
-                    "Saving diary entry...",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-
-            LaunchedEffect(photoModeUiState.isSaving) {
-                if (!photoModeUiState.isSaving && photoModeUiState.shouldNavigateUp) {
-                    onNavigateUp()
-                }
-            }
-
-            if (photoModeUiState.analysisState == AnalysisState.AFTER) {
-                when (photoModeUiState.analysisPassed) {
-                    true -> AddToDiaryDialog(
+            if (!forceDismiss) {
+                when (photoModeUiState.dialogState) {
+                    DialogState.SUCCESS -> AddToDiaryDialog(
                         onDismissRequest = { viewModel.resetUiState() },
                         onConfirmation = {
+                            forceDismiss = true
                             viewModel.onSaveToDiaryConfirmed()
+                            onNavigateUp()
                         })
 
-                    false -> AnalysisFailedDialog(
+                    DialogState.FAILURE -> AnalysisFailedDialog(
                         onDismissRequest = {
-                            viewModel.resetUiState()
+                            forceDismiss = true
                             onNavigateUp()
                         },
                         onConfirmation = { viewModel.resetUiState() }
                     )
+
+                    DialogState.NONE -> {}
                 }
             }
 

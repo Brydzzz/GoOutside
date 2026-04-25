@@ -20,10 +20,13 @@ import com.example.gooutside.data.DiaryEntriesRepository
 import com.example.gooutside.data.DiaryEntry
 import com.example.gooutside.data.PhotoRepository
 import com.example.gooutside.data.PhotoSaveResult
+import com.example.gooutside.di.ApplicationScope
 import com.example.gooutside.domain.AnalyzeImageUseCase
 import com.example.gooutside.location.LocationDetails
 import com.example.gooutside.location.LocationManager
+import com.example.gooutside.util.ToastManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.delay
@@ -45,7 +48,9 @@ class PhotoModeViewModel @Inject constructor(
     private val analyzeImageUseCase: AnalyzeImageUseCase,
     private val photoRepository: PhotoRepository,
     private val diaryRepository: DiaryEntriesRepository,
-    private val locationManager: LocationManager
+    private val locationManager: LocationManager,
+    private val toastManager: ToastManager,
+    @param:ApplicationScope private val applicationScope: CoroutineScope
 ) : ViewModel() {
 
     companion object {
@@ -81,7 +86,7 @@ class PhotoModeViewModel @Inject constructor(
                 Log.d(TAG, "analyzeImageUseCase completed: $analysisPassed")
                 imageProxy.close()
 
-                delay(1500) // delay for ux
+                delay(1000) // delay for ux
 
                 updateUiStateAfterAnalysis(analysisPassed)
             } catch (e: Exception) {
@@ -91,13 +96,13 @@ class PhotoModeViewModel @Inject constructor(
         }
     }
 
-    // TODO: implement
     fun onSaveToDiaryConfirmed() {
         Log.d(TAG, "onSaveToDiaryConfirmed called")
-        viewModelScope.launch {
-            _uiState.update { it.copy(isSaving = true) }
-            val savePhotoResult =
-                _uiState.value.capturedImageBitmap?.let { photoRepository.saveToMediaStore(it) }
+        val bitmapToSave = _uiState.value.capturedImageBitmap
+        resetUiState()
+
+        applicationScope.launch(Dispatchers.IO) {
+            val savePhotoResult = bitmapToSave?.let { photoRepository.saveToMediaStore(it) }
 
             when (savePhotoResult) {
                 is PhotoSaveResult.Success -> {
@@ -133,22 +138,29 @@ class PhotoModeViewModel @Inject constructor(
                     diaryRepository.insertDiaryEntry(entry)
                 }
 
-                else ->
-                    Log.e(TAG, "Photo saving to MediaStore failed")
+                is PhotoSaveResult.Failure -> {
+                    Log.e(
+                        TAG,
+                        "Photo saving to MediaStore failed: ${savePhotoResult.exception.message}"
+                    )
+                    toastManager.show("Diary entry saving failed")
+                }
+
+                null -> {
+                    Log.e(TAG, "Photo saving to MediaStore failed: bitMapToSave was null")
+                    toastManager.show("Diary entry saving failed")
+                }
             }
-            _uiState.update { it.copy(shouldNavigateUp = true) }
-            resetUiState()
         }
     }
 
     fun resetUiState() {
         _uiState.update {
             it.copy(
-                analysisPassed = false,
                 analysisState = AnalysisState.BEFORE,
                 capturedImageBitmap = null,
                 showAnalysisOverlay = false,
-                isSaving = false,
+                dialogState = DialogState.NONE
             )
         }
         Log.d(TAG, "resetUiState finished")
@@ -183,8 +195,8 @@ class PhotoModeViewModel @Inject constructor(
     private fun updateUiStateAfterAnalysis(analysisPassed: Boolean) {
         _uiState.update {
             it.copy(
-                analysisPassed = analysisPassed,
                 analysisState = AnalysisState.AFTER,
+                dialogState = if (analysisPassed) DialogState.SUCCESS else DialogState.FAILURE,
                 showAnalysisOverlay = false
             )
         }
@@ -249,15 +261,19 @@ enum class AnalysisState {
     AFTER
 }
 
+enum class DialogState {
+    NONE,
+    SUCCESS,
+    FAILURE
+}
+
 // todo: check if photo was already taken today
 data class PhotoModeUiState(
     val cameraFacing: CameraFacing = CameraFacing.BACK,
     val flashMode: FlashMode = FlashMode.OFF,
     val analysisState: AnalysisState = AnalysisState.BEFORE,
-    val analysisPassed: Boolean = false,
+    val dialogState: DialogState = DialogState.NONE,
     val capturedImageBitmap: Bitmap? = null,
     val showAnalysisOverlay: Boolean = false,
-    val isSaving: Boolean = false,
-    val shouldNavigateUp: Boolean = false
 )
 
