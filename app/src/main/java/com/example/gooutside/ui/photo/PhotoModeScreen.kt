@@ -113,8 +113,7 @@ fun PhotoModeScreen(
         var forceDismiss by remember { mutableStateOf(false) }
 
         Surface(
-            modifier = modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.surfaceContainer
+            modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surfaceContainer
         ) {
             if (!forceDismiss) {
                 when (val state = photoModeUiState.photoState) {
@@ -141,10 +140,7 @@ fun PhotoModeScreen(
 
             Column(
                 modifier = Modifier.padding(
-                    top = 12.dp,
-                    start = 20.dp,
-                    end = 20.dp,
-                    bottom = 32.dp
+                    top = 12.dp, start = 20.dp, end = 20.dp, bottom = 32.dp
                 ),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(18.dp)
@@ -167,8 +163,7 @@ fun PhotoModeScreen(
         }
     } else {
         PermissionScreen(
-            permissionsState = permissionsState,
-            onNavigateUp = onNavigateUp
+            permissionsState = permissionsState, onNavigateUp = onNavigateUp
         )
     }
 }
@@ -211,14 +206,11 @@ fun CameraPreviewStyled(
             .fillMaxHeight(0.9f)
             .clip(RoundedCornerShape(14.dp))
             .border(
-                5.dp,
-                MaterialTheme.colorScheme.primary,
-                RoundedCornerShape(14.dp)
+                5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(14.dp)
             )
     ) {
         CameraPreview(
-            modifier = Modifier.align(Alignment.TopCenter),
-            cameraController = cameraController
+            modifier = Modifier.align(Alignment.TopCenter), cameraController = cameraController
         )
         FilledIconButton(
             modifier = Modifier
@@ -230,8 +222,7 @@ fun CameraPreviewStyled(
                 coroutineScope.launch {
                     flashAlpha.snapTo(0.8f)
                     flashAlpha.animateTo(
-                        targetValue = 0f,
-                        animationSpec = tween(200)
+                        targetValue = 0f, animationSpec = tween(200)
                     )
                 }
                 onCapture()
@@ -251,8 +242,7 @@ fun CameraPreviewStyled(
                     .matchParentSize()
                     .drawBehind {
                         drawRect(Color.Black.copy(alpha = flashAlpha.value))
-                    }
-            )
+                    })
         }
 
         if (showAnalysisOverlay) {
@@ -272,8 +262,7 @@ fun AnalysisOverlay(capturedImageBitmap: Bitmap?, modifier: Modifier = Modifier)
         )
     }
     Box(
-        modifier = modifier
-            .background(Color(red = 0, green = 0, blue = 0, alpha = 125)),
+        modifier = modifier.background(Color(red = 0, green = 0, blue = 0, alpha = 125)),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -309,20 +298,17 @@ fun CameraButtons(
         verticalAlignment = Alignment.CenterVertically
     ) {
         FilledTonalIconButton(
-            onClick = onNavigateUp,
-            modifier = Modifier.size(iconSize)
+            onClick = onNavigateUp, modifier = Modifier.size(iconSize)
         ) {
             Icon(painter = painterResource(R.drawable.ic_arrow_back_24), contentDescription = null)
         }
         FilledTonalIconButton(
-            onClick = toggleFlash,
-            modifier = Modifier.size(iconSize)
+            onClick = toggleFlash, modifier = Modifier.size(iconSize)
         ) {
             Icon(painter = painterResource(flashIcon), contentDescription = null)
         }
         FilledTonalIconButton(
-            onClick = toggleCameraFacing,
-            modifier = Modifier.size(iconSize)
+            onClick = toggleCameraFacing, modifier = Modifier.size(iconSize)
         ) {
             Icon(painter = painterResource(R.drawable.ic_flip_camera_24), contentDescription = null)
         }
@@ -346,8 +332,7 @@ fun PermissionScreen(
     ) {
         IconButton(onClick = onNavigateUp) {
             Icon(
-                painter = painterResource(R.drawable.ic_arrow_back_24),
-                contentDescription = null
+                painter = painterResource(R.drawable.ic_arrow_back_24), contentDescription = null
             )
         }
 
@@ -366,9 +351,7 @@ fun PermissionScreen(
                 stringResource(R.string.permission_required_message)
             }
             Text(
-                textToShow,
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center
+                textToShow, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center
             )
 
             Spacer(modifier = Modifier.size(14.dp))
@@ -398,13 +381,11 @@ fun PermissionScreen(
 @Composable
 fun CameraPreview(modifier: Modifier = Modifier, cameraController: LifecycleCameraController) {
     AndroidView(
-        modifier = modifier.fillMaxSize(),
-        factory = { context ->
+        modifier = modifier.fillMaxSize(), factory = { context ->
             PreviewView(context).apply {
                 controller = cameraController
             }
-        }
-    )
+        })
 }
 
 @Composable
@@ -426,8 +407,7 @@ fun AddToDiaryDialog(
 
 @Composable
 fun AnalysisFailedDialog(
-    onDismissRequest: () -> Unit,
-    onConfirmation: () -> Unit
+    onDismissRequest: () -> Unit, onConfirmation: () -> Unit
 ) {
     CustomAlertDialog(
         onDismissRequest = onDismissRequest,
