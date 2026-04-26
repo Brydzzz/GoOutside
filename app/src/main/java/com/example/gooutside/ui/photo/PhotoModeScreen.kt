@@ -117,24 +117,25 @@ fun PhotoModeScreen(
             color = MaterialTheme.colorScheme.surfaceContainer
         ) {
             if (!forceDismiss) {
-                when (photoModeUiState.dialogState) {
-                    DialogState.SUCCESS -> AddToDiaryDialog(
-                        onDismissRequest = { viewModel.resetState() },
-                        onConfirmation = {
-                            forceDismiss = true
-                            viewModel.onSaveToDiaryConfirmed()
-                            onNavigateUp()
-                        })
+                when (val state = photoModeUiState.photoState) {
+                    is PhotoState.Done -> if (state.passed) {
+                        AddToDiaryDialog(
+                            onDismissRequest = { viewModel.resetState() },
+                            onConfirmation = {
+                                forceDismiss = true
+                                viewModel.onSaveToDiaryConfirmed()
+                                onNavigateUp()
+                            })
+                    } else {
+                        AnalysisFailedDialog(
+                            onDismissRequest = {
+                                forceDismiss = true
+                                onNavigateUp()
+                            },
+                            onConfirmation = { viewModel.resetState() })
+                    }
 
-                    DialogState.FAILURE -> AnalysisFailedDialog(
-                        onDismissRequest = {
-                            forceDismiss = true
-                            onNavigateUp()
-                        },
-                        onConfirmation = { viewModel.resetState() }
-                    )
-
-                    DialogState.NONE -> {}
+                    else -> {}
                 }
             }
 
@@ -154,7 +155,7 @@ fun PhotoModeScreen(
                     cameraController = cameraController,
                     showAnalysisOverlay = photoModeUiState.showAnalysisOverlay,
                     capturedImageBitmap = photoModeUiState.displayBitmap,
-                    analysisState = photoModeUiState.analysisState
+                    photoState = photoModeUiState.photoState
                 )
                 CameraButtons(
                     onNavigateUp = onNavigateUp,
@@ -199,7 +200,7 @@ fun CameraPreviewStyled(
     showAnalysisOverlay: Boolean,
     capturedImageBitmap: Bitmap?,
     cameraController: LifecycleCameraController,
-    analysisState: AnalysisState,
+    photoState: PhotoState,
     onCapture: () -> Unit
 ) {
     val flashAlpha = remember { Animatable(0f) }
@@ -235,7 +236,7 @@ fun CameraPreviewStyled(
                 }
                 onCapture()
             },
-            enabled = analysisState != AnalysisState.DURING
+            enabled = photoState !is PhotoState.Processing
         ) {
             Icon(
                 painter = painterResource(R.drawable.ic_photo_camera_24),

@@ -36,6 +36,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import javax.inject.Inject
 import kotlin.coroutines.resume
@@ -75,17 +76,17 @@ class PhotoModeViewModel @Inject constructor(
     fun onCapture(controller: LifecycleCameraController) {
         Log.d(TAG, "onCapture called")
 
-        if (_uiState.value.analysisState == AnalysisState.DURING) {
+        if (_uiState.value.photoState == PhotoState.Processing) {
             Log.d(TAG, "Already processing, ignoring click")
             return
         }
 
-        _uiState.update { it.copy(analysisState = AnalysisState.DURING) }
+        _uiState.update { it.copy(photoState = PhotoState.Processing) }
 
         viewModelScope.launch {
             try {
                 val imageProxy = capturePhotoToMemory(controller)
-
+                processCapture(imageProxy)
                 val analysisPassed = analyzeImageUseCase(imageProxy)
                 Log.d(TAG, "analyzeImageUseCase completed: $analysisPassed")
                 imageProxy.close()
@@ -159,47 +160,45 @@ class PhotoModeViewModel @Inject constructor(
     }
 
     fun resetState() {
+        pendingSaveBitmap = null
         _uiState.update {
             it.copy(
-                analysisState = AnalysisState.BEFORE,
+                photoState = PhotoState.Idle,
                 showAnalysisOverlay = false,
-                dialogState = DialogState.NONE
+                displayBitmap = null
             )
         }
-        pendingSaveBitmap = null
         Log.d(TAG, "resetState finished")
     }
 
     private suspend fun capturePhotoToMemory(controller: LifecycleCameraController): ImageProxy {
         return suspendCancellableCoroutine { continuation ->
-            val cameraExecutor = Dispatchers.Default.asExecutor()
-            controller.takePicture(cameraExecutor, object : ImageCapture.OnImageCapturedCallback() {
-                override fun onCaptureSuccess(image: ImageProxy) {
-                    continuation.resume(image)
+            controller.takePicture(
+                Dispatchers.Default.asExecutor(),
+                object : ImageCapture.OnImageCapturedCallback() {
+                    override fun onCaptureSuccess(image: ImageProxy) {
+                        continuation.resume(image)
+                    }
 
-                    viewModelScope.launch {
-                        processCapture(image)
+                    override fun onError(exception: ImageCaptureException) {
+                        Log.e(TAG, "Photo capture failed: ${exception.message}", exception)
+                        continuation.resumeWithException(exception)
                     }
                 }
-
-                override fun onError(exception: ImageCaptureException) {
-                    Log.e(TAG, "Photo capture failed: ${exception.message}", exception)
-                    continuation.resumeWithException(exception)
-                }
-            })
+            )
         }
     }
 
     private fun updateUiStateAfterAnalysis(analysisPassed: Boolean) {
         _uiState.update {
             it.copy(
-                analysisState = AnalysisState.AFTER,
-                dialogState = if (analysisPassed) DialogState.SUCCESS else DialogState.FAILURE,
+                photoState = PhotoState.Done(analysisPassed),
                 showAnalysisOverlay = false
             )
         }
     }
-    private fun processCapture(imageProxy: ImageProxy) {
+
+    private suspend fun processCapture(imageProxy: ImageProxy) = withContext(Dispatchers.IO) {
         val raw = imageProxy.toBitmap()
         val rotation = imageProxy.imageInfo.rotationDegrees
         val isFront = _uiState.value.cameraFacing.value == CameraSelector.DEFAULT_FRONT_CAMERA
@@ -225,7 +224,8 @@ class PhotoModeViewModel @Inject constructor(
             if (isFront) postScale(-1f, 1f)
             postRotate(extraRotation)
         }
-        val displayBitmap = Bitmap.createBitmap(scaled, 0, 0, scaled.width, scaled.height, displayMatrix, true)
+        val displayBitmap =
+            Bitmap.createBitmap(scaled, 0, 0, scaled.width, scaled.height, displayMatrix, true)
         scaled.recycle()
 
 
@@ -237,10 +237,12 @@ class PhotoModeViewModel @Inject constructor(
         raw.recycle()
 
         pendingSaveBitmap = saveBitmap
-        _uiState.update { it.copy(
-            displayBitmap = displayBitmap,
-            showAnalysisOverlay = true
-        )}
+        _uiState.update {
+            it.copy(
+                displayBitmap = displayBitmap,
+                showAnalysisOverlay = true
+            )
+        }
     }
 }
 
@@ -266,24 +268,17 @@ enum class CameraFacing(val value: CameraSelector) {
     }
 }
 
-enum class AnalysisState {
-    BEFORE,
-    DURING,
-    AFTER
-}
-
-enum class DialogState {
-    NONE,
-    SUCCESS,
-    FAILURE
+sealed class PhotoState {
+    data object Idle : PhotoState()
+    data object Processing : PhotoState()
+    data class Done(val passed: Boolean) : PhotoState()
 }
 
 // todo: check if photo was already taken today
 data class PhotoModeUiState(
     val cameraFacing: CameraFacing = CameraFacing.BACK,
     val flashMode: FlashMode = FlashMode.OFF,
-    val analysisState: AnalysisState = AnalysisState.BEFORE,
-    val dialogState: DialogState = DialogState.NONE,
+    val photoState: PhotoState = PhotoState.Idle,
     val displayBitmap: Bitmap? = null,
     val showAnalysisOverlay: Boolean = false,
 )
