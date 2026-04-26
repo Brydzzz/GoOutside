@@ -5,7 +5,6 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.os.Environment
 import android.provider.MediaStore
-import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -50,7 +49,7 @@ class PhotoRepository @Inject constructor(
                 }
             } catch (e: Exception) {
                 resolver.delete(uri, null, null)
-                Log.e(TAG, "Saving photo to MediaStore failed: ${e.message}", e)
+                return@withContext PhotoSaveResult.Failure(e)
             }
 
             imageDetails.clear()

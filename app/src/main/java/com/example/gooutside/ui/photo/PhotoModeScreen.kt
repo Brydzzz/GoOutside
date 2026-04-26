@@ -5,11 +5,12 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
 import android.provider.Settings
-import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.camera.view.CameraController
 import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -37,14 +38,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -66,7 +68,7 @@ import com.google.accompanist.permissions.MultiplePermissionsState
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.google.accompanist.permissions.shouldShowRationale
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 
 @OptIn(ExperimentalPermissionsApi::class)
@@ -86,13 +88,12 @@ fun PhotoModeScreen(
 
     val locationPermissions =
         permissionsState.permissions.filter { it.permission != android.Manifest.permission.CAMERA }
-
     val locationPermissionsGranted = locationPermissions.any { it.status.isGranted }
     val cameraPermissionGranted = LocalContext.current.checkSelfPermission(
         android.Manifest.permission.CAMERA
     ) == PackageManager.PERMISSION_GRANTED
 
-    if (permissionsState.allPermissionsGranted || (locationPermissionsGranted && cameraPermissionGranted)) {
+    if (locationPermissionsGranted && cameraPermissionGranted) {
         val photoModeUiState: PhotoModeUiState by viewModel.uiState.collectAsStateWithLifecycle()
 
         val lifecycleOwner = LocalLifecycleOwner.current
@@ -108,49 +109,38 @@ fun PhotoModeScreen(
         cameraController.cameraSelector = photoModeUiState.cameraFacing.value
         cameraController.imageCaptureFlashMode = photoModeUiState.flashMode.value
 
+        // to start dialog animation early, changing dialogState in VM is too slow
+        var forceDismiss by remember { mutableStateOf(false) }
+
         Surface(
-            modifier = modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.surfaceContainer
+            modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surfaceContainer
         ) {
+            if (!forceDismiss) {
+                when (val state = photoModeUiState.photoState) {
+                    is PhotoState.Done -> if (state.passed) {
+                        AddToDiaryDialog(
+                            onDismissRequest = { viewModel.resetState() },
+                            onConfirmation = {
+                                forceDismiss = true
+                                viewModel.onSaveToDiaryConfirmed()
+                                onNavigateUp()
+                            })
+                    } else {
+                        AnalysisFailedDialog(
+                            onDismissRequest = {
+                                forceDismiss = true
+                                onNavigateUp()
+                            },
+                            onConfirmation = { viewModel.resetState() })
+                    }
 
-            if (photoModeUiState.isSaving) {
-                Toast.makeText(
-                    context,
-                    "Saving diary entry...",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-
-            LaunchedEffect(photoModeUiState.isSaving) {
-                if (!photoModeUiState.isSaving && photoModeUiState.shouldNavigateUp) {
-                    onNavigateUp()
-                }
-            }
-
-            if (photoModeUiState.analysisState == AnalysisState.AFTER) {
-                when (photoModeUiState.analysisPassed) {
-                    true -> AddToDiaryDialog(
-                        onDismissRequest = { viewModel.resetUiState() },
-                        onConfirmation = {
-                            viewModel.onSaveToDiaryConfirmed()
-                        })
-
-                    false -> AnalysisFailedDialog(
-                        onDismissRequest = {
-                            viewModel.resetUiState()
-                            onNavigateUp()
-                        },
-                        onConfirmation = { viewModel.resetUiState() }
-                    )
+                    else -> {}
                 }
             }
 
             Column(
                 modifier = Modifier.padding(
-                    top = 12.dp,
-                    start = 20.dp,
-                    end = 20.dp,
-                    bottom = 32.dp
+                    top = 12.dp, start = 20.dp, end = 20.dp, bottom = 32.dp
                 ),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(18.dp)
@@ -160,8 +150,8 @@ fun PhotoModeScreen(
                     onCapture = { viewModel.onCapture(cameraController) },
                     cameraController = cameraController,
                     showAnalysisOverlay = photoModeUiState.showAnalysisOverlay,
-                    capturedImageBitmap = photoModeUiState.capturedImageBitmap,
-                    analysisState = photoModeUiState.analysisState
+                    capturedImageBitmap = photoModeUiState.displayBitmap,
+                    photoState = photoModeUiState.photoState
                 )
                 CameraButtons(
                     onNavigateUp = onNavigateUp,
@@ -173,8 +163,7 @@ fun PhotoModeScreen(
         }
     } else {
         PermissionScreen(
-            permissionsState = permissionsState,
-            onNavigateUp = onNavigateUp
+            permissionsState = permissionsState, onNavigateUp = onNavigateUp
         )
     }
 }
@@ -206,32 +195,22 @@ fun CameraPreviewStyled(
     showAnalysisOverlay: Boolean,
     capturedImageBitmap: Bitmap?,
     cameraController: LifecycleCameraController,
-    analysisState: AnalysisState,
+    photoState: PhotoState,
     onCapture: () -> Unit
 ) {
-    var shutterFlash by remember { mutableStateOf(false) }
-
-    LaunchedEffect(analysisState) {
-        if (analysisState == AnalysisState.DURING) {
-            shutterFlash = true
-            delay(100)
-            shutterFlash = false
-        }
-    }
+    val flashAlpha = remember { Animatable(0f) }
+    val coroutineScope = rememberCoroutineScope()
 
     Box(
         modifier = Modifier
             .fillMaxHeight(0.9f)
             .clip(RoundedCornerShape(14.dp))
             .border(
-                5.dp,
-                MaterialTheme.colorScheme.primary,
-                RoundedCornerShape(14.dp)
+                5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(14.dp)
             )
     ) {
         CameraPreview(
-            modifier = Modifier.align(Alignment.TopCenter),
-            cameraController = cameraController
+            modifier = Modifier.align(Alignment.TopCenter), cameraController = cameraController
         )
         FilledIconButton(
             modifier = Modifier
@@ -240,10 +219,15 @@ fun CameraPreviewStyled(
                 .align(Alignment.BottomCenter),
             shape = CircleShape,
             onClick = {
+                coroutineScope.launch {
+                    flashAlpha.snapTo(0.8f)
+                    flashAlpha.animateTo(
+                        targetValue = 0f, animationSpec = tween(200)
+                    )
+                }
                 onCapture()
-                shutterFlash = true
             },
-            enabled = analysisState != AnalysisState.DURING
+            enabled = photoState !is PhotoState.Processing
         ) {
             Icon(
                 painter = painterResource(R.drawable.ic_photo_camera_24),
@@ -252,46 +236,49 @@ fun CameraPreviewStyled(
             )
         }
 
-        if (shutterFlash) {
+        if (flashAlpha.value > 0f) {
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .background(Color.Black.copy(alpha = 0.5f))
-            )
+                    .drawBehind {
+                        drawRect(Color.Black.copy(alpha = flashAlpha.value))
+                    })
         }
 
         if (showAnalysisOverlay) {
-            // TODO display horizontal image horizontally
-            capturedImageBitmap?.let { bitmap ->
-                Image(
-                    bitmap = bitmap.asImageBitmap(),
-                    contentDescription = stringResource(R.string.captured_photo_content_description),
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.matchParentSize()
-                )
-            }
-            Box(
+            AnalysisOverlay(capturedImageBitmap, Modifier.matchParentSize())
+        }
+    }
+}
+
+@Composable
+fun AnalysisOverlay(capturedImageBitmap: Bitmap?, modifier: Modifier = Modifier) {
+    capturedImageBitmap?.let { bitmap ->
+        Image(
+            bitmap = bitmap.asImageBitmap(),
+            contentDescription = stringResource(R.string.captured_photo_content_description),
+            contentScale = ContentScale.Crop,
+            modifier = modifier
+        )
+    }
+    Box(
+        modifier = modifier.background(Color(red = 0, green = 0, blue = 0, alpha = 125)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                stringResource(R.string.analysing_photo_message),
+                style = MaterialTheme.typography.titleMedium,
+                color = Color(0xFFFFF8F4)
+            )
+            Spacer(Modifier.size(6.dp))
+            CircularProgressIndicator(
                 modifier = Modifier
-                    .matchParentSize()
-                    .background(Color(red = 0, green = 0, blue = 0, alpha = 125)),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        stringResource(R.string.analysing_photo_message),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Color(0xFFFFF8F4)
-                    )
-                    Spacer(Modifier.size(6.dp))
-                    CircularProgressIndicator(
-                        modifier = Modifier
-                            .width(64.dp)
-                            .height(64.dp),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                    )
-                }
-            }
+                    .width(64.dp)
+                    .height(64.dp),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+            )
         }
     }
 }
@@ -311,20 +298,17 @@ fun CameraButtons(
         verticalAlignment = Alignment.CenterVertically
     ) {
         FilledTonalIconButton(
-            onClick = onNavigateUp,
-            modifier = Modifier.size(iconSize)
+            onClick = onNavigateUp, modifier = Modifier.size(iconSize)
         ) {
             Icon(painter = painterResource(R.drawable.ic_arrow_back_24), contentDescription = null)
         }
         FilledTonalIconButton(
-            onClick = toggleFlash,
-            modifier = Modifier.size(iconSize)
+            onClick = toggleFlash, modifier = Modifier.size(iconSize)
         ) {
             Icon(painter = painterResource(flashIcon), contentDescription = null)
         }
         FilledTonalIconButton(
-            onClick = toggleCameraFacing,
-            modifier = Modifier.size(iconSize)
+            onClick = toggleCameraFacing, modifier = Modifier.size(iconSize)
         ) {
             Icon(painter = painterResource(R.drawable.ic_flip_camera_24), contentDescription = null)
         }
@@ -348,8 +332,7 @@ fun PermissionScreen(
     ) {
         IconButton(onClick = onNavigateUp) {
             Icon(
-                painter = painterResource(R.drawable.ic_arrow_back_24),
-                contentDescription = null
+                painter = painterResource(R.drawable.ic_arrow_back_24), contentDescription = null
             )
         }
 
@@ -368,9 +351,7 @@ fun PermissionScreen(
                 stringResource(R.string.permission_required_message)
             }
             Text(
-                textToShow,
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center
+                textToShow, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center
             )
 
             Spacer(modifier = Modifier.size(14.dp))
@@ -400,13 +381,11 @@ fun PermissionScreen(
 @Composable
 fun CameraPreview(modifier: Modifier = Modifier, cameraController: LifecycleCameraController) {
     AndroidView(
-        modifier = modifier.fillMaxSize(),
-        factory = { context ->
+        modifier = modifier.fillMaxSize(), factory = { context ->
             PreviewView(context).apply {
                 controller = cameraController
             }
-        }
-    )
+        })
 }
 
 @Composable
@@ -428,8 +407,7 @@ fun AddToDiaryDialog(
 
 @Composable
 fun AnalysisFailedDialog(
-    onDismissRequest: () -> Unit,
-    onConfirmation: () -> Unit
+    onDismissRequest: () -> Unit, onConfirmation: () -> Unit
 ) {
     CustomAlertDialog(
         onDismissRequest = onDismissRequest,

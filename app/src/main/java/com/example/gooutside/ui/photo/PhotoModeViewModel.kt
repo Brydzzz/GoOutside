@@ -1,18 +1,19 @@
 package com.example.gooutside.ui.photo
 
-import android.annotation.SuppressLint
+import android.Manifest.permission.ACCESS_COARSE_LOCATION
+import android.Manifest.permission.ACCESS_FINE_LOCATION
 import android.graphics.Bitmap
 import android.graphics.Matrix
-import android.os.Build
 import android.util.Log
 import androidx.annotation.DrawableRes
-import androidx.annotation.OptIn
+import androidx.annotation.RequiresPermission
 import androidx.camera.core.CameraSelector
-import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
 import androidx.camera.view.LifecycleCameraController
+import androidx.compose.runtime.Stable
+import androidx.core.graphics.scale
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gooutside.R
@@ -20,10 +21,13 @@ import com.example.gooutside.data.DiaryEntriesRepository
 import com.example.gooutside.data.DiaryEntry
 import com.example.gooutside.data.PhotoRepository
 import com.example.gooutside.data.PhotoSaveResult
+import com.example.gooutside.di.ApplicationScope
 import com.example.gooutside.domain.AnalyzeImageUseCase
 import com.example.gooutside.location.LocationDetails
 import com.example.gooutside.location.LocationManager
+import com.example.gooutside.util.ToastManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.delay
@@ -32,25 +36,31 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import javax.inject.Inject
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
 
 
-// TODO: Clean up and refactor
 @HiltViewModel
+@Stable
 class PhotoModeViewModel @Inject constructor(
     private val analyzeImageUseCase: AnalyzeImageUseCase,
     private val photoRepository: PhotoRepository,
     private val diaryRepository: DiaryEntriesRepository,
-    private val locationManager: LocationManager
+    private val locationManager: LocationManager,
+    private val toastManager: ToastManager,
+    @param:ApplicationScope private val applicationScope: CoroutineScope
 ) : ViewModel() {
 
     companion object {
         private const val TAG = "PhotoModeViewModel"
+        private const val ANALYSIS_UX_DELAY_MS: Long = 1000L
     }
+
+    private var pendingSaveBitmap: Bitmap? = null
 
     private val _uiState = MutableStateFlow(PhotoModeUiState())
     val uiState: StateFlow<PhotoModeUiState> = _uiState.asStateFlow()
@@ -66,57 +76,52 @@ class PhotoModeViewModel @Inject constructor(
     fun onCapture(controller: LifecycleCameraController) {
         Log.d(TAG, "onCapture called")
 
-        if (_uiState.value.analysisState == AnalysisState.DURING) {
+        if (_uiState.value.photoState == PhotoState.Processing) {
             Log.d(TAG, "Already processing, ignoring click")
             return
         }
 
-        _uiState.update { it.copy(analysisState = AnalysisState.DURING) }
+        _uiState.update { it.copy(photoState = PhotoState.Processing) }
 
         viewModelScope.launch {
             try {
                 val imageProxy = capturePhotoToMemory(controller)
-
+                processCapture(imageProxy)
                 val analysisPassed = analyzeImageUseCase(imageProxy)
                 Log.d(TAG, "analyzeImageUseCase completed: $analysisPassed")
                 imageProxy.close()
 
-                delay(1500) // delay for ux
+                delay(ANALYSIS_UX_DELAY_MS) // delay for ux
 
                 updateUiStateAfterAnalysis(analysisPassed)
             } catch (e: Exception) {
-                resetUiState()
+                resetState()
                 Log.e(TAG, "Photo capture or analysis failed: ${e.message}", e)
             }
         }
     }
 
-    // TODO: implement
+    @RequiresPermission(anyOf = [ACCESS_COARSE_LOCATION, ACCESS_FINE_LOCATION])
     fun onSaveToDiaryConfirmed() {
         Log.d(TAG, "onSaveToDiaryConfirmed called")
-        viewModelScope.launch {
-            _uiState.update { it.copy(isSaving = true) }
-            val savePhotoResult =
-                _uiState.value.capturedImageBitmap?.let { photoRepository.saveToMediaStore(it) }
+        val bitmapToSave = pendingSaveBitmap
+        resetState()
+
+        applicationScope.launch(Dispatchers.IO) {
+            val savePhotoResult = bitmapToSave?.let { photoRepository.saveToMediaStore(it) }
 
             when (savePhotoResult) {
                 is PhotoSaveResult.Success -> {
                     Log.d(TAG, "Photo saved to MediaStore: ${savePhotoResult.uri}")
 
 
-                    @SuppressLint("MissingPermission") // Is being checked in ui
                     val location = locationManager.getCurrentLocation()
                     Log.d(TAG, "Location: $location")
 
                     var locationDetails: LocationDetails? = null
                     if (location != null) {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            locationDetails = locationManager.reverseGeocode(location)
-                            Log.d(TAG, "Location details: $locationDetails")
-                        } else {
-                            locationDetails = locationManager.reverseGeocodeLegacy(location)
-                            Log.d(TAG, "Location details: $locationDetails")
-                        }
+                        locationDetails = locationManager.reverseGeocode(location)
+                        Log.d(TAG, "Location details: $locationDetails")
                     }
 
                     val entry = DiaryEntry(
@@ -133,91 +138,106 @@ class PhotoModeViewModel @Inject constructor(
                     diaryRepository.insertDiaryEntry(entry)
                 }
 
-                else ->
-                    Log.e(TAG, "Photo saving to MediaStore failed")
+                is PhotoSaveResult.Failure -> {
+                    Log.e(
+                        TAG,
+                        "Photo saving to MediaStore failed: ${savePhotoResult.exception.message}"
+                    )
+                    toastManager.show("Diary entry saving failed")
+                }
+
+                null -> {
+                    Log.e(TAG, "Photo saving to MediaStore failed: bitMapToSave was null")
+                    toastManager.show("Diary entry saving failed")
+                }
             }
-            _uiState.update { it.copy(shouldNavigateUp = true) }
-            resetUiState()
         }
     }
 
-    fun resetUiState() {
+    fun resetState() {
+        pendingSaveBitmap = null
         _uiState.update {
             it.copy(
-                analysisPassed = false,
-                analysisState = AnalysisState.BEFORE,
-                capturedImageBitmap = null,
+                photoState = PhotoState.Idle,
                 showAnalysisOverlay = false,
-                isSaving = false,
+                displayBitmap = null
             )
         }
-        Log.d(TAG, "resetUiState finished")
+        Log.d(TAG, "resetState finished")
     }
 
     private suspend fun capturePhotoToMemory(controller: LifecycleCameraController): ImageProxy {
-        return suspendCoroutine { continuation ->
-            val cameraExecutor = Dispatchers.Default.asExecutor()
-            controller.takePicture(cameraExecutor, object : ImageCapture.OnImageCapturedCallback() {
-                override fun onCaptureSuccess(image: ImageProxy) {
-                    continuation.resume(image)
+        return suspendCancellableCoroutine { continuation ->
+            controller.takePicture(
+                Dispatchers.Default.asExecutor(),
+                object : ImageCapture.OnImageCapturedCallback() {
+                    override fun onCaptureSuccess(image: ImageProxy) {
+                        continuation.resume(image)
+                    }
 
-                    viewModelScope.launch {
-                        val previewBitmap = createPreviewBitmap(image)
-                        _uiState.update {
-                            it.copy(
-                                capturedImageBitmap = previewBitmap,
-                                showAnalysisOverlay = true
-                            )
-                        }
+                    override fun onError(exception: ImageCaptureException) {
+                        Log.e(TAG, "Photo capture failed: ${exception.message}", exception)
+                        continuation.resumeWithException(exception)
                     }
                 }
-
-                override fun onError(exception: ImageCaptureException) {
-                    Log.e(TAG, "Photo capture failed: ${exception.message}", exception)
-                    continuation.resumeWithException(exception)
-                }
-            })
+            )
         }
     }
 
     private fun updateUiStateAfterAnalysis(analysisPassed: Boolean) {
         _uiState.update {
             it.copy(
-                analysisPassed = analysisPassed,
-                analysisState = AnalysisState.AFTER,
+                photoState = PhotoState.Done(analysisPassed),
                 showAnalysisOverlay = false
             )
         }
     }
 
-    @OptIn(ExperimentalGetImage::class)
-    private fun createPreviewBitmap(imageProxy: ImageProxy): Bitmap? {
-        return try {
-            val bitmap = imageProxy.toBitmap()
-            val rotation = imageProxy.imageInfo.rotationDegrees
-
-            val matrix = Matrix().apply { postRotate(rotation.toFloat()) }
-
-            // Flip horizontally when front camera was used to show photo as previewed
-            if (_uiState.value.cameraFacing.value == CameraSelector.DEFAULT_FRONT_CAMERA) {
-                matrix.postScale(-1f, 1f)
-            }
-
-            val rotatedBitmap = Bitmap.createBitmap(
-                bitmap,
-                0, 0,
-                bitmap.width,
-                bitmap.height,
-                matrix,
-                true
-            )
-
-            rotatedBitmap
-        } catch (e: Exception) {
-            Log.e(TAG, "Updating captured image bitmap failed: ${e.message}", e)
-            null
+    private suspend fun processCapture(imageProxy: ImageProxy) = withContext(Dispatchers.IO) {
+        val raw = imageProxy.toBitmap()
+        val rotation = imageProxy.imageInfo.rotationDegrees
+        val isFront = _uiState.value.cameraFacing.value == CameraSelector.DEFAULT_FRONT_CAMERA
+        // adjust for portrait display
+        // NOTE: the rotation depends on producer -  might break in some phones
+        val extraRotation = when (rotation) {
+            // for front camera default portrait is 270 but upside down is 90
+            0 -> 90f
+            90 -> if (isFront) 180f else 0f
+            180 -> -90f
+            270 -> if (isFront) 0f else 180f
+            // imageInfo.rotationDegrees returns the rotation in degrees which will be a value in {0, 90, 180, 270}
+            else -> 0f
         }
+        val scale = 1080f / maxOf(raw.width, raw.height)
+        val scaledWidth = (raw.width * scale).toInt()
+        val scaledHeight = (raw.height * scale).toInt()
+        val scaled = raw.scale(scaledWidth, scaledHeight)
 
+
+        val displayMatrix = Matrix().apply {
+            postRotate(rotation.toFloat())
+            if (isFront) postScale(-1f, 1f)
+            postRotate(extraRotation)
+        }
+        val displayBitmap =
+            Bitmap.createBitmap(scaled, 0, 0, scaled.width, scaled.height, displayMatrix, true)
+        scaled.recycle()
+
+
+        val saveMatrix = Matrix().apply {
+            postRotate(rotation.toFloat())
+            if (isFront) postScale(-1f, 1f)
+        }
+        val saveBitmap = Bitmap.createBitmap(raw, 0, 0, raw.width, raw.height, saveMatrix, true)
+        raw.recycle()
+
+        pendingSaveBitmap = saveBitmap
+        _uiState.update {
+            it.copy(
+                displayBitmap = displayBitmap,
+                showAnalysisOverlay = true
+            )
+        }
     }
 }
 
@@ -243,21 +263,18 @@ enum class CameraFacing(val value: CameraSelector) {
     }
 }
 
-enum class AnalysisState {
-    BEFORE,
-    DURING,
-    AFTER
+sealed class PhotoState {
+    data object Idle : PhotoState()
+    data object Processing : PhotoState()
+    data class Done(val passed: Boolean) : PhotoState()
 }
 
 // todo: check if photo was already taken today
 data class PhotoModeUiState(
     val cameraFacing: CameraFacing = CameraFacing.BACK,
     val flashMode: FlashMode = FlashMode.OFF,
-    val analysisState: AnalysisState = AnalysisState.BEFORE,
-    val analysisPassed: Boolean = false,
-    val capturedImageBitmap: Bitmap? = null,
+    val photoState: PhotoState = PhotoState.Idle,
+    val displayBitmap: Bitmap? = null,
     val showAnalysisOverlay: Boolean = false,
-    val isSaving: Boolean = false,
-    val shouldNavigateUp: Boolean = false
 )
 
