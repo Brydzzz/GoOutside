@@ -1,11 +1,12 @@
 package com.example.gooutside.ui.photo
 
-import android.annotation.SuppressLint
+import android.Manifest.permission.ACCESS_COARSE_LOCATION
+import android.Manifest.permission.ACCESS_FINE_LOCATION
 import android.graphics.Bitmap
 import android.graphics.Matrix
-import android.os.Build
 import android.util.Log
 import androidx.annotation.DrawableRes
+import androidx.annotation.RequiresPermission
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
@@ -43,7 +44,6 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 
-// TODO: Clean up and refactor
 @HiltViewModel
 @Stable
 class PhotoModeViewModel @Inject constructor(
@@ -101,6 +101,7 @@ class PhotoModeViewModel @Inject constructor(
         }
     }
 
+    @RequiresPermission(anyOf = [ACCESS_COARSE_LOCATION, ACCESS_FINE_LOCATION])
     fun onSaveToDiaryConfirmed() {
         Log.d(TAG, "onSaveToDiaryConfirmed called")
         val bitmapToSave = pendingSaveBitmap
@@ -114,19 +115,13 @@ class PhotoModeViewModel @Inject constructor(
                     Log.d(TAG, "Photo saved to MediaStore: ${savePhotoResult.uri}")
 
 
-                    @SuppressLint("MissingPermission") // Is being checked in ui
                     val location = locationManager.getCurrentLocation()
                     Log.d(TAG, "Location: $location")
 
                     var locationDetails: LocationDetails? = null
                     if (location != null) {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            locationDetails = locationManager.reverseGeocode(location)
-                            Log.d(TAG, "Location details: $locationDetails")
-                        } else {
-                            locationDetails = locationManager.reverseGeocodeLegacy(location)
-                            Log.d(TAG, "Location details: $locationDetails")
-                        }
+                        locationDetails = locationManager.reverseGeocode(location)
+                        Log.d(TAG, "Location details: $locationDetails")
                     }
 
                     val entry = DiaryEntry(

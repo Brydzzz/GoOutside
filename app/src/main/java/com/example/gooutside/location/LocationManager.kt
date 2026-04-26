@@ -2,6 +2,7 @@ package com.example.gooutside.location
 
 import android.content.Context
 import android.content.pm.PackageManager
+import android.location.Address
 import android.location.Geocoder
 import android.location.Location
 import android.os.Build
@@ -19,9 +20,7 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.coroutines.cancellation.CancellationException
 import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 
 
 @Singleton
@@ -59,20 +58,18 @@ class LocationManager @Inject constructor(
                 fusedLocationClient.getCurrentLocation(request, cancellationTokenSource.token)
                     .addOnSuccessListener { location ->
                         Log.d("LocationManager", "Got fresh location: $location")
-                        continuation.resume(location) { cause, _, _ -> }
+                        continuation.resume(location)
                     }
                     .addOnFailureListener { e ->
                         Log.e("LocationManager", "Failed to get fresh location", e)
-                        continuation.resume(null) { cause, _, _ -> }
+                        continuation.resume(null)
                     }
 
                 continuation.invokeOnCancellation {
+                    Log.e("LocationManager", "Location request was cancelled")
                     cancellationTokenSource.cancel()
                 }
             }
-        } catch (e: CancellationException) {
-            Log.e("LocationManager", "Location request was cancelled")
-            throw e // Re-throw to propagate cancellation properly
         } catch (e: Exception) {
             Log.e("LocationManager", "Error getting fresh location: ${e.message}")
             null
@@ -92,20 +89,34 @@ class LocationManager @Inject constructor(
         }
     }
 
+    suspend fun reverseGeocode(location: Location): LocationDetails? {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            reverseGeocodeModern(location)
+        } else {
+            reverseGeocodeLegacy(location)
+        }
+    }
+
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-    suspend fun reverseGeocode(location: Location): LocationDetails? =
-        suspendCoroutine { continuation ->
-            geocoder.getFromLocation(location.latitude, location.longitude, 1) { addresses ->
-                addresses.firstOrNull()?.let { address ->
-                    val street = address.thoroughfare
-                    val streetNumber = address.subThoroughfare
-                    val city = address.locality
-                    val country = address.countryName
-                    val locationDetails = LocationDetails(street, streetNumber, city, country)
-                    Log.d("Geocoder", "Location details: $locationDetails")
-                    continuation.resume(locationDetails)
-                } ?: continuation.resume(null)
-            }
+    suspend fun reverseGeocodeModern(location: Location): LocationDetails? =
+        suspendCancellableCoroutine { continuation ->
+            geocoder.getFromLocation(
+                location.latitude, location.longitude, 1,
+                object : Geocoder.GeocodeListener {
+                    override fun onGeocode(addresses: MutableList<Address>) {
+                        addresses.firstOrNull()?.let { address ->
+                            val locationDetails = address.toLocationDetails()
+                            Log.d("Geocoder", "Location details: $locationDetails")
+                            continuation.resume(locationDetails)
+                        } ?: continuation.resume(null)
+                    }
+
+                    override fun onError(errorMessage: String?) {
+                        Log.e("Geocoder", "Error: $errorMessage")
+                        continuation.resume(null)
+                    }
+                }
+            )
         }
 
     @Suppress("DEPRECATION")
@@ -114,14 +125,7 @@ class LocationManager @Inject constructor(
             val addresses = withContext(Dispatchers.Default) {
                 geocoder.getFromLocation(location.latitude, location.longitude, 1)
             }
-            addresses?.firstOrNull()?.let { address ->
-                val street = address.thoroughfare
-                val streetNumber = address.subThoroughfare
-                val city = address.locality
-                val country = address.countryName
-                val locationDetails = LocationDetails(street, streetNumber, city, country)
-                locationDetails
-            }
+            addresses?.firstOrNull()?.toLocationDetails()
         } catch (e: Exception) {
             Log.e("Geocoder", "Error: ${e.message}")
             null
@@ -129,6 +133,13 @@ class LocationManager @Inject constructor(
     }
 
 }
+
+private fun Address.toLocationDetails() = LocationDetails(
+    street = thoroughfare,
+    streetNumber = subThoroughfare,
+    city = locality,
+    country = countryName
+)
 
 data class LocationDetails(
     val street: String? = null,
