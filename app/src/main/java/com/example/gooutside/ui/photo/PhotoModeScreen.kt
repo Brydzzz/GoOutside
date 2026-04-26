@@ -9,7 +9,7 @@ import androidx.annotation.DrawableRes
 import androidx.camera.view.CameraController
 import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -41,10 +41,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -66,6 +68,7 @@ import com.google.accompanist.permissions.MultiplePermissionsState
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.google.accompanist.permissions.shouldShowRationale
+import kotlinx.coroutines.launch
 
 
 @OptIn(ExperimentalPermissionsApi::class)
@@ -85,13 +88,12 @@ fun PhotoModeScreen(
 
     val locationPermissions =
         permissionsState.permissions.filter { it.permission != android.Manifest.permission.CAMERA }
-
     val locationPermissionsGranted = locationPermissions.any { it.status.isGranted }
     val cameraPermissionGranted = LocalContext.current.checkSelfPermission(
         android.Manifest.permission.CAMERA
     ) == PackageManager.PERMISSION_GRANTED
 
-    if (permissionsState.allPermissionsGranted || (locationPermissionsGranted && cameraPermissionGranted)) {
+    if (locationPermissionsGranted && cameraPermissionGranted) {
         val photoModeUiState: PhotoModeUiState by viewModel.uiState.collectAsStateWithLifecycle()
 
         val lifecycleOwner = LocalLifecycleOwner.current
@@ -200,13 +202,8 @@ fun CameraPreviewStyled(
     analysisState: AnalysisState,
     onCapture: () -> Unit
 ) {
-    var shutterFlash by remember { mutableStateOf(false) }
-    val flashAlpha by animateFloatAsState(
-        targetValue = if (shutterFlash) 0.5f else 0f,
-        animationSpec = tween(durationMillis = 100),
-        finishedListener = { shutterFlash = false },
-        label = "FlashAnimation"
-    )
+    val flashAlpha = remember { Animatable(0f) }
+    val coroutineScope = rememberCoroutineScope()
 
     Box(
         modifier = Modifier
@@ -229,7 +226,13 @@ fun CameraPreviewStyled(
                 .align(Alignment.BottomCenter),
             shape = CircleShape,
             onClick = {
-                shutterFlash = true
+                coroutineScope.launch {
+                    flashAlpha.snapTo(0.8f)
+                    flashAlpha.animateTo(
+                        targetValue = 0f,
+                        animationSpec = tween(200)
+                    )
+                }
                 onCapture()
             },
             enabled = analysisState != AnalysisState.DURING
@@ -241,11 +244,13 @@ fun CameraPreviewStyled(
             )
         }
 
-        if (flashAlpha > 0f) {
+        if (flashAlpha.value > 0f) {
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .background(Color.Black.copy(alpha = flashAlpha))
+                    .drawBehind {
+                        drawRect(Color.Black.copy(alpha = flashAlpha.value))
+                    }
             )
         }
 

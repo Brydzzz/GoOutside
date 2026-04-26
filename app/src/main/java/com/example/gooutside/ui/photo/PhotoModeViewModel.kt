@@ -56,6 +56,7 @@ class PhotoModeViewModel @Inject constructor(
 
     companion object {
         private const val TAG = "PhotoModeViewModel"
+        private const val ANALYSIS_UX_DELAY_MS: Long = 1000L
     }
 
     private var pendingSaveBitmap: Bitmap? = null
@@ -89,7 +90,7 @@ class PhotoModeViewModel @Inject constructor(
                 Log.d(TAG, "analyzeImageUseCase completed: $analysisPassed")
                 imageProxy.close()
 
-                delay(1000) // delay for ux
+                delay(ANALYSIS_UX_DELAY_MS) // delay for ux
 
                 updateUiStateAfterAnalysis(analysisPassed)
             } catch (e: Exception) {
@@ -202,12 +203,15 @@ class PhotoModeViewModel @Inject constructor(
         val raw = imageProxy.toBitmap()
         val rotation = imageProxy.imageInfo.rotationDegrees
         val isFront = _uiState.value.cameraFacing.value == CameraSelector.DEFAULT_FRONT_CAMERA
-        val needsExtraRotation = rotation != 90
+        // adjust for portrait display
+        // NOTE: the rotation depends on producer -  might break in some phones
         val extraRotation = when (rotation) {
-            // adjust for portrait display
+            // for front camera default portrait is 270 but upside down is 90
             0 -> 90f
+            90 -> if (isFront) 180f else 0f
             180 -> -90f
-            270 -> 180f
+            270 -> if (isFront) 0f else 180f
+            // imageInfo.rotationDegrees returns the rotation in degrees which will be a value in {0, 90, 180, 270}
             else -> 0f
         }
         val scale = 1080f / maxOf(raw.width, raw.height)
@@ -219,7 +223,7 @@ class PhotoModeViewModel @Inject constructor(
         val displayMatrix = Matrix().apply {
             postRotate(rotation.toFloat())
             if (isFront) postScale(-1f, 1f)
-            if (needsExtraRotation) postRotate(extraRotation)
+            postRotate(extraRotation)
         }
         val displayBitmap = Bitmap.createBitmap(scaled, 0, 0, scaled.width, scaled.height, displayMatrix, true)
         scaled.recycle()
