@@ -43,15 +43,13 @@ fun Modifier.scallopBorder(
         this@drawWithContent.drawContent()
     }
 
-    val path = buildScallopPath(0f, 0f, size.width, size.height, bumpRadius, thicknessPx)
+    val path = buildScallopPath(size.width, size.height, bumpRadius, thicknessPx)
     drawPath(path, color = color)
 }
 
 private fun buildScallopPath(
-    left: Float,
-    top: Float,
-    right: Float,
-    bottom: Float,
+    width: Float,
+    height: Float,
     bumpRadius: Float,
     borderThickness: Float,
 ): Path {
@@ -60,15 +58,10 @@ private fun buildScallopPath(
     }
 
     val bumpDiameter = bumpRadius * 2f
-    val width = right - left
-    val height = bottom - top
-
     val availableWidth = width - (bumpDiameter * 2)
     val availableHeight = height - (bumpDiameter * 2)
-
     val countH = floor(availableWidth / bumpDiameter).roundToInt().coerceAtLeast(1)
     val countV = floor(availableHeight / bumpDiameter).roundToInt().coerceAtLeast(1)
-
     val segW = availableWidth / countH
     val segH = availableHeight / countV
 
@@ -81,12 +74,9 @@ private fun buildScallopPath(
 
         val midX = (baseStartX + baseEndX) / 2f
         val midY = (baseStartY + baseEndY) / 2f
-        
+
         val rect = Rect(
-            left = midX - radius,
-            top = midY - radius,
-            right = midX + radius,
-            bottom = midY + radius
+            left = midX - radius, top = midY - radius, right = midX + radius, bottom = midY + radius
         )
 
         val angleRad = atan2(dy, dx)
@@ -123,88 +113,76 @@ private fun buildScallopPath(
 
     // 1. Top-Left Corner
     drawCornerArc(
-        cx = left + bumpRadius,
-        cy = top + bumpRadius,
-        startAngle = 90f,
-        isFirst = true
+        cx = bumpRadius, cy = bumpRadius, startAngle = 90f, isFirst = true
     )
 
     // 2. Top Bumps (Left to Right)
     for (i in 0 until countH) {
-        val startX = left + bumpRadius * 2 + (i * segW)
+        val startX = bumpRadius * 2 + (i * segW)
         drawBump(
             baseStartX = startX,
-            baseStartY = top + bumpRadius,
+            baseStartY = bumpRadius,
             baseEndX = startX + segW,
-            baseEndY = top + bumpRadius,
+            baseEndY = bumpRadius,
         )
     }
 
     // 3. Top-Right Corner
     drawCornerArc(
-        cx = right - bumpRadius,
-        cy = top + bumpRadius,
-        startAngle = 180f
+        cx = width - bumpRadius, cy = bumpRadius, startAngle = 180f
     )
 
     // 4. Right Bumps (Top to Bottom)
     for (i in 0 until countV) {
-        val startY = top + bumpRadius * 2 + (i * segH)
+        val startY = bumpRadius * 2 + (i * segH)
         drawBump(
-            baseStartX = right - bumpRadius,
+            baseStartX = width - bumpRadius,
             baseStartY = startY,
-            baseEndX = right - bumpRadius,
+            baseEndX = width - bumpRadius,
             baseEndY = startY + segH,
         )
     }
 
     // 5. Bottom-Right Corner
     drawCornerArc(
-        cx = right - bumpRadius,
-        cy = bottom - bumpRadius,
-        startAngle = 270f
+        cx = width - bumpRadius, cy = height - bumpRadius, startAngle = 270f
     )
 
     // 6. Bottom Bumps (Right to Left)
     for (i in 0 until countH) {
-        val startX = right - bumpRadius * 2 - (i * segW)
+        val startX = width - bumpRadius * 2 - (i * segW)
         drawBump(
             baseStartX = startX,
-            baseStartY = bottom - bumpRadius,
+            baseStartY = height - bumpRadius,
             baseEndX = startX - segW,
-            baseEndY = bottom - bumpRadius,
+            baseEndY = height - bumpRadius,
         )
     }
 
     // 7. Bottom-Left Corner
     drawCornerArc(
-        cx = left + bumpRadius,
-        cy = bottom - bumpRadius,
-        startAngle = 0f
+        cx = bumpRadius, cy = height - bumpRadius, startAngle = 0f
     )
 
     // 8. Left Bumps (Bottom to Top)
     for (i in 0 until countV) {
-        val startY = bottom - bumpRadius * 2 - (i * segH)
+        val startY = height - bumpRadius * 2 - (i * segH)
         drawBump(
-            baseStartX = left + bumpRadius,
+            baseStartX = bumpRadius,
             baseStartY = startY,
-            baseEndX = left + bumpRadius,
+            baseEndX = bumpRadius,
             baseEndY = startY - segH,
         )
     }
 
-    val innerLeft = left + bumpRadius + borderThickness
-    val innerTop = top + bumpRadius + borderThickness
-    val innerRight = right - bumpRadius - borderThickness
-    val innerBottom = bottom - bumpRadius - borderThickness
+    val innerLeft = bumpRadius + borderThickness
+    val innerTop = bumpRadius + borderThickness
+    val innerRight = width - bumpRadius - borderThickness
+    val innerBottom = height - bumpRadius - borderThickness
 
     path.addRect(
         Rect(
-            left = innerLeft,
-            top = innerTop,
-            right = innerRight,
-            bottom = innerBottom
+            left = innerLeft, top = innerTop, right = innerRight, bottom = innerBottom
         )
     )
 
