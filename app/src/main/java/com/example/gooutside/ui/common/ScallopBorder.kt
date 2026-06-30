@@ -1,9 +1,11 @@
 package com.example.gooutside.ui.common
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
@@ -193,21 +195,27 @@ private fun buildScallopPath(
 @Preview
 @Composable
 fun ScallopBorderPreview() {
-    Box(
+    Column(
+        verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier
             .padding(10.dp)
-            .size(200.dp, 100.dp)
-            .scallopBorder(
-                color = Color.White,
-                bumpCount = 15,
-                borderThickness = 4.dp
-            )
+            .size(500.dp, 300.dp)
     ) {
         Image(
             painter = painterResource(id = R.drawable.diary_test_image),
             contentDescription = null,
-            modifier = Modifier.matchParentSize(),
+            modifier = Modifier.scallopBorder(
+                    color = Color.White, bumpCount = 15, borderThickness = 2.dp
+                ),
             contentScale = ContentScale.Crop
+        )
+        Text(
+            "content", modifier = Modifier
+                .scallopBorder(
+                    color = Color.White, bumpCount = 15, borderThickness = 2.dp
+
+                )
+                .padding(6.dp)
         )
     }
 }
